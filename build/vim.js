@@ -1329,6 +1329,9 @@
         return;
       }
       if (App.vim.isMode(GENERAL) || App.vim.isMode(VISUAL)) {
+        if (ev.metaKey || ev.ctrlKey) {
+          return;
+        }
         if (App.vim.replaceRequest) {
           replaced = true;
           App.vim.replaceRequest = false;
