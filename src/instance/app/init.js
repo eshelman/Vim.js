@@ -47,6 +47,12 @@ exports.clipboard = undefined;
 exports.doList = [];
 
 /**
+ * app redo list
+ * @type {Array}
+ */
+exports.redoList = [];
+
+/**
  * app do list deep
  * @type {number}
  */

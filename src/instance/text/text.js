@@ -447,3 +447,53 @@ exports.getNextParagraphPos = function (p) {
 
     return [len - 1, undefined];
 };
+
+// ==============================
+// Search methods
+// ==============================
+
+// Find next occurrence of string after position p, wrapping around
+exports.findNext = function(query, p) {
+    var text = this.getText();
+    var idx = text.indexOf(query, p + 1);
+    if (idx === -1) {
+        // Wrap around to beginning
+        idx = text.indexOf(query, 0);
+    }
+    // If the only match is at the current position, treat as no match
+    if (idx === p) {
+        return undefined;
+    }
+    return idx === -1 ? undefined : idx;
+};
+
+// Find previous occurrence of string before position p, wrapping around
+exports.findPrev = function(query, p) {
+    var text = this.getText();
+    var idx = -1;
+    if (p - 1 >= 0) {
+        idx = text.lastIndexOf(query, p - 1);
+    }
+    if (idx === -1) {
+        // Wrap around to end
+        idx = text.lastIndexOf(query, text.length);
+    }
+    // If the only match is at the current position, treat as no match
+    if (idx === p) {
+        return undefined;
+    }
+    return idx === -1 ? undefined : idx;
+};
+
+// Get word under cursor (for * and #)
+exports.getWordUnderCursor = function(p) {
+    if (p === undefined) p = this.getCursorPosition();
+    var text = this.getText();
+    if (!text.length) return undefined;
+    var ch = text.charAt(p);
+    if (!/[\w\u4e00-\u9fa5]/.test(ch)) return undefined;
+    var start = p, end = p;
+    while (start > 0 && /[\w\u4e00-\u9fa5]/.test(text.charAt(start - 1))) start--;
+    while (end < text.length - 1 && /[\w\u4e00-\u9fa5]/.test(text.charAt(end + 1))) end++;
+    return text.substring(start, end + 1);
+};

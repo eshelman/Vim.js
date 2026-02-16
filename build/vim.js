@@ -89,6 +89,7 @@
     init$1.pasteInNewLineRequest = false;
     init$1.visualPosition = void 0;
     init$1.visualCursor = void 0;
+    init$1.textObjectRequest = null;
     return init$1;
   }
   var hasRequiredVim;
@@ -110,6 +111,7 @@
     vim.resetVim = function() {
       this.replaceRequest = false;
       this.findCharRequest = null;
+      this.textObjectRequest = null;
       this.visualPosition = void 0;
       this.visualCursor = void 0;
     };
@@ -804,6 +806,190 @@
         this.visualCursor = i + 1;
       }
     };
+    vim._charClass = function(ch) {
+      if (/[\w\u4e00-\u9fa5]/.test(ch)) return "word";
+      if (/\s/.test(ch)) return "space";
+      return "symbol";
+    };
+    vim.getInnerWordRange = function(p) {
+      var text2 = textUtil.getText();
+      var len = text2.length;
+      if (p < 0 || p >= len) return null;
+      var ch = text2.charAt(p);
+      var cls = this._charClass(ch);
+      var start = p;
+      while (start > 0 && this._charClass(text2.charAt(start - 1)) === cls) {
+        start--;
+      }
+      var end = p + 1;
+      while (end < len && this._charClass(text2.charAt(end)) === cls) {
+        end++;
+      }
+      return [start, end];
+    };
+    vim.getAWordRange = function(p) {
+      var text2 = textUtil.getText();
+      var len = text2.length;
+      if (p < 0 || p >= len) return null;
+      var inner = this.getInnerWordRange(p);
+      if (!inner) return null;
+      var start = inner[0];
+      var end = inner[1];
+      var trailEnd = end;
+      while (trailEnd < len && /\s/.test(text2.charAt(trailEnd))) {
+        trailEnd++;
+      }
+      if (trailEnd > end) {
+        return [start, trailEnd];
+      }
+      var leadStart = start;
+      while (leadStart > 0 && /\s/.test(text2.charAt(leadStart - 1))) {
+        leadStart--;
+      }
+      if (leadStart < start) {
+        return [leadStart, end];
+      }
+      return [start, end];
+    };
+    vim.getInnerQuoteRange = function(p, quoteChar) {
+      var text2 = textUtil.getText();
+      var len = text2.length;
+      if (p < 0 || p >= len) return null;
+      var openPos = -1;
+      var closePos = -1;
+      var quotes = [];
+      for (var i = 0; i < len; i++) {
+        if (text2.charAt(i) === quoteChar) {
+          quotes.push(i);
+        }
+      }
+      for (var j = 0; j < quotes.length - 1; j += 2) {
+        var qOpen = quotes[j];
+        var qClose = quotes[j + 1];
+        if (p >= qOpen && p <= qClose) {
+          openPos = qOpen;
+          closePos = qClose;
+          break;
+        }
+      }
+      if (openPos === -1 || closePos === -1) return null;
+      if (closePos - openPos <= 1) return null;
+      return [openPos + 1, closePos];
+    };
+    vim.getAQuoteRange = function(p, quoteChar) {
+      var text2 = textUtil.getText();
+      var len = text2.length;
+      if (p < 0 || p >= len) return null;
+      var quotes = [];
+      for (var i = 0; i < len; i++) {
+        if (text2.charAt(i) === quoteChar) {
+          quotes.push(i);
+        }
+      }
+      for (var j = 0; j < quotes.length - 1; j += 2) {
+        var qOpen = quotes[j];
+        var qClose = quotes[j + 1];
+        if (p >= qOpen && p <= qClose) {
+          return [qOpen, qClose + 1];
+        }
+      }
+      return null;
+    };
+    vim.getInnerPairRange = function(p, openChar, closeChar) {
+      var text2 = textUtil.getText();
+      var len = text2.length;
+      if (p < 0 || p >= len) return null;
+      var openPos = -1;
+      var depth = 0;
+      var scanStart = p;
+      if (text2.charAt(p) === closeChar && openChar !== closeChar) {
+        scanStart = p - 1;
+        depth = 0;
+        for (var i = scanStart; i >= 0; i--) {
+          if (text2.charAt(i) === closeChar) {
+            depth++;
+          } else if (text2.charAt(i) === openChar) {
+            if (depth === 0) {
+              openPos = i;
+              break;
+            }
+            depth--;
+          }
+        }
+        if (openPos !== -1) {
+          if (p - openPos <= 1) return null;
+          return [openPos + 1, p];
+        }
+        return null;
+      }
+      if (text2.charAt(p) === openChar && openChar !== closeChar) {
+        depth = 0;
+        for (var i = p + 1; i < len; i++) {
+          if (text2.charAt(i) === openChar) {
+            depth++;
+          } else if (text2.charAt(i) === closeChar) {
+            if (depth === 0) {
+              if (i - p <= 1) return null;
+              return [p + 1, i];
+            }
+            depth--;
+          }
+        }
+        return null;
+      }
+      depth = 0;
+      for (var i = p; i >= 0; i--) {
+        if (text2.charAt(i) === closeChar && i !== p && openChar !== closeChar) {
+          depth++;
+        } else if (text2.charAt(i) === openChar) {
+          if (depth === 0) {
+            openPos = i;
+            break;
+          }
+          depth--;
+        }
+      }
+      if (openPos === -1) return null;
+      depth = 0;
+      var closePos = -1;
+      for (var i = openPos + 1; i < len; i++) {
+        if (text2.charAt(i) === openChar) {
+          depth++;
+        } else if (text2.charAt(i) === closeChar) {
+          if (depth === 0) {
+            closePos = i;
+            break;
+          }
+          depth--;
+        }
+      }
+      if (closePos === -1) return null;
+      if (closePos - openPos <= 1) return null;
+      return [openPos + 1, closePos];
+    };
+    vim.getAPairRange = function(p, openChar, closeChar) {
+      var inner = this.getInnerPairRange(p, openChar, closeChar);
+      if (!inner) return null;
+      return [inner[0] - 1, inner[1] + 1];
+    };
+    vim.searchForward = function(query) {
+      var p = textUtil.getCursorPosition();
+      var pos = textUtil.findNext(query, p);
+      if (pos !== void 0) {
+        textUtil.select(pos, pos + 1);
+        return pos;
+      }
+      return void 0;
+    };
+    vim.searchBackward = function(query) {
+      var p = textUtil.getCursorPosition();
+      var pos = textUtil.findPrev(query, p);
+      if (pos !== void 0) {
+        textUtil.select(pos, pos + 1);
+        return pos;
+      }
+      return void 0;
+    };
     return vim;
   }
   var text = {};
@@ -1159,6 +1345,42 @@
       }
       return [len - 1, void 0];
     };
+    text.findNext = function(query, p) {
+      var text2 = this.getText();
+      var idx = text2.indexOf(query, p + 1);
+      if (idx === -1) {
+        idx = text2.indexOf(query, 0);
+      }
+      if (idx === p) {
+        return void 0;
+      }
+      return idx === -1 ? void 0 : idx;
+    };
+    text.findPrev = function(query, p) {
+      var text2 = this.getText();
+      var idx = -1;
+      if (p - 1 >= 0) {
+        idx = text2.lastIndexOf(query, p - 1);
+      }
+      if (idx === -1) {
+        idx = text2.lastIndexOf(query, text2.length);
+      }
+      if (idx === p) {
+        return void 0;
+      }
+      return idx === -1 ? void 0 : idx;
+    };
+    text.getWordUnderCursor = function(p) {
+      if (p === void 0) p = this.getCursorPosition();
+      var text2 = this.getText();
+      if (!text2.length) return void 0;
+      var ch = text2.charAt(p);
+      if (!/[\w\u4e00-\u9fa5]/.test(ch)) return void 0;
+      var start = p, end = p;
+      while (start > 0 && /[\w\u4e00-\u9fa5]/.test(text2.charAt(start - 1))) start--;
+      while (end < text2.length - 1 && /[\w\u4e00-\u9fa5]/.test(text2.charAt(end + 1))) end++;
+      return text2.substring(start, end + 1);
+    };
     return text;
   }
   var controller = {};
@@ -1343,7 +1565,28 @@
       exports$1.backToHistory = function() {
         var key = App.getEleKey();
         var list = App.doList[key];
-        vim2.backToHistory(list);
+        if (list && list.length) {
+          App.recordRedo(App.textUtil.getText(), App.textUtil.getCursorPosition());
+          vim2.backToHistory(list);
+        }
+      };
+      exports$1.redo = function() {
+        var key = App.getEleKey();
+        var redoList = App.redoList[key];
+        if (redoList && redoList.length) {
+          var t = App.textUtil.getText();
+          var p = App.textUtil.getCursorPosition();
+          if (!App.doList[key]) {
+            App.doList[key] = [];
+          }
+          if (App.doList[key].length >= App.doListDeep) {
+            App.doList[key].shift();
+          }
+          App.doList[key].push({ "t": t, "p": p });
+          var data = redoList.pop();
+          textUtil.setText(data.t);
+          textUtil.select(data.p, data.p + 1);
+        }
       };
       exports$1.delCurrLine = function(num) {
         App.repeatAction(function() {
@@ -1627,6 +1870,129 @@
           vim2.moveToWordEndBig();
         }, num);
       };
+      exports$1.deleteInnerObject = function(num) {
+        vim2.textObjectRequest = { operator: "d", type: "inner", count: num || 1 };
+      };
+      exports$1.deleteAObject = function(num) {
+        vim2.textObjectRequest = { operator: "d", type: "a", count: num || 1 };
+      };
+      exports$1.yankInnerObject = function(num) {
+        vim2.textObjectRequest = { operator: "y", type: "inner", count: num || 1 };
+      };
+      exports$1.yankAObject = function(num) {
+        vim2.textObjectRequest = { operator: "y", type: "a", count: num || 1 };
+      };
+      exports$1.changeInnerObject = function(num) {
+        vim2.textObjectRequest = { operator: "c", type: "inner", count: num || 1 };
+      };
+      exports$1.changeAObject = function(num) {
+        vim2.textObjectRequest = { operator: "c", type: "a", count: num || 1 };
+      };
+      var _pairMap = {
+        "(": ["(", ")"],
+        ")": ["(", ")"],
+        "{": ["{", "}"],
+        "}": ["{", "}"],
+        "[": ["[", "]"],
+        "]": ["[", "]"]
+      };
+      exports$1.executeTextObject = function(specifierChar, request) {
+        var p = textUtil.getCursorPosition();
+        var operator = request.operator;
+        var type = request.type;
+        var range = null;
+        if (specifierChar === "w") {
+          if (type === "inner") {
+            range = vim2.getInnerWordRange(p);
+          } else {
+            range = vim2.getAWordRange(p);
+          }
+        } else if (specifierChar === '"' || specifierChar === "'") {
+          if (type === "inner") {
+            range = vim2.getInnerQuoteRange(p, specifierChar);
+          } else {
+            range = vim2.getAQuoteRange(p, specifierChar);
+          }
+        } else if (_pairMap[specifierChar]) {
+          var pair = _pairMap[specifierChar];
+          if (type === "inner") {
+            range = vim2.getInnerPairRange(p, pair[0], pair[1]);
+          } else {
+            range = vim2.getAPairRange(p, pair[0], pair[1]);
+          }
+        }
+        if (!range) return;
+        var start = range[0];
+        var end = range[1];
+        if (operator === "d") {
+          vim2.pasteInNewLineRequest = false;
+          App.clipboard = textUtil.getText(start, end);
+          textUtil.delete(start, end);
+          textUtil.select(start, start + 1);
+        } else if (operator === "y") {
+          vim2.pasteInNewLineRequest = false;
+          App.clipboard = textUtil.getText(start, end);
+        } else if (operator === "c") {
+          vim2.pasteInNewLineRequest = false;
+          App.clipboard = textUtil.getText(start, end);
+          textUtil.delete(start, end);
+          textUtil.select(start, start);
+          App.startEditCapture();
+          _timeoutIds.push(setTimeout(function() {
+            vim2.switchModeTo(EDIT);
+          }, 100));
+        }
+      };
+      exports$1.searchForward = function() {
+        App.searchRequest = { direction: 1 };
+      };
+      exports$1.searchBackward = function() {
+        App.searchRequest = { direction: -1 };
+      };
+      exports$1.executeSearch = function(query, direction) {
+        App._searchState = { query, direction };
+        if (direction === 1) {
+          vim2.searchForward(query);
+        } else {
+          vim2.searchBackward(query);
+        }
+      };
+      exports$1.searchNext = function(num) {
+        var state = App._searchState;
+        if (!state || !state.query) return;
+        App.repeatAction(function() {
+          if (state.direction === 1) {
+            vim2.searchForward(state.query);
+          } else {
+            vim2.searchBackward(state.query);
+          }
+        }, num);
+      };
+      exports$1.searchPrev = function(num) {
+        var state = App._searchState;
+        if (!state || !state.query) return;
+        App.repeatAction(function() {
+          if (state.direction === -1) {
+            vim2.searchForward(state.query);
+          } else {
+            vim2.searchBackward(state.query);
+          }
+        }, num);
+      };
+      exports$1.searchWordForward = function() {
+        var word = textUtil.getWordUnderCursor();
+        if (word) {
+          App._searchState = { query: word, direction: 1 };
+          vim2.searchForward(word);
+        }
+      };
+      exports$1.searchWordBackward = function() {
+        var word = textUtil.getWordUnderCursor();
+        if (word) {
+          App._searchState = { query: word, direction: -1 };
+          vim2.searchBackward(word);
+        }
+      };
       exports$1.destroy = function() {
         for (var i = 0; i < _timeoutIds.length; i++) {
           clearTimeout(_timeoutIds[i]);
@@ -1725,6 +2091,16 @@
       router2.code("68_84", "dt").action("dt", "deleteTillForward").action("DT", "deleteTillBackward").record(true);
       router2.code("89_70", "yf").action("yf", "yankFindForward").action("YF", "yankFindBackward");
       router2.code("89_84", "yt").action("yt", "yankTillForward").action("YT", "yankTillBackward");
+      router2.code(191, "/").action("/", "searchForward").action("shift_/", "searchBackward");
+      router2.code(78, "n").action("n", "searchNext").action("N", "searchPrev");
+      router2.code(56, "8").action("shift_8", "searchWordForward");
+      router2.code(51, "3").action("shift_3", "searchWordBackward");
+      router2.code("68_73", "di").action("di", "deleteInnerObject").record(true);
+      router2.code("68_65", "da").action("da", "deleteAObject").record(true);
+      router2.code("89_73", "yi").action("yi", "yankInnerObject");
+      router2.code("89_65", "ya").action("ya", "yankAObject");
+      router2.code("67_73", "ci").action("ci", "changeInnerObject").record(true);
+      router2.code("67_65", "ca").action("ca", "changeAObject").record(true);
     };
     return routes;
   }
@@ -1784,6 +2160,28 @@
         App._log("mode:" + App.vim.currentMode);
         if (replaced) {
           App.recordText();
+          return;
+        }
+        if (App.vim.textObjectRequest) {
+          var char = ev.key;
+          if (!char || char.length > 1) {
+            char = String.fromCharCode(code);
+            if (ev.shiftKey) {
+              char = char.toUpperCase();
+            } else {
+              char = char.toLowerCase();
+            }
+          }
+          if (char.length !== 1) {
+            App.vim.textObjectRequest = null;
+            return;
+          }
+          var req = App.vim.textObjectRequest;
+          App.vim.textObjectRequest = null;
+          if (req.operator === "d" || req.operator === "c") {
+            App.recordText();
+          }
+          App.controller.executeTextObject(char, req);
           return;
         }
         if (App.vim.findCharRequest) {
@@ -1861,6 +2259,15 @@
         return;
       }
       if (App.vim.isMode(GENERAL) || App.vim.isMode(VISUAL)) {
+        if (ev.ctrlKey && code === 82) {
+          if (ev.preventDefault) {
+            ev.preventDefault();
+          } else {
+            ev.returnValue = false;
+          }
+          App.controller.redo();
+          return;
+        }
         if (ev.metaKey || ev.ctrlKey) {
           return;
         }
@@ -1876,11 +2283,6 @@
           } else {
             ev.returnValue = false;
           }
-        }
-      } else {
-        if (code !== 27) {
-          var p = App.textUtil.getCursorPosition();
-          App.recordText(void 0, p - 1 >= 0 ? p - 1 : p);
         }
       }
       App._fire("input", ev, replaced);
@@ -1907,6 +2309,7 @@
     init.textUtil = void 0;
     init.clipboard = void 0;
     init.doList = [];
+    init.redoList = [];
     init.doListDeep = 100;
     init.prevCode = void 0;
     init.prevCodeTime = 0;
@@ -1962,6 +2365,7 @@
       this.controller = void 0;
       this.clipboard = void 0;
       this.doList = [];
+      this.redoList = [];
       this._lastDotCommand = void 0;
       this._editStartText = void 0;
       this._editStartPos = void 0;
@@ -2026,7 +2430,21 @@
         this.doList[key].shift();
       }
       this.doList[key].push(data);
+      this.clearRedo();
       this._log(this.doList);
+    };
+    app.recordRedo = function(t, p) {
+      var key = this.getEleKey();
+      if (!this.redoList[key]) {
+        this.redoList[key] = [];
+      }
+      this.redoList[key].push({ "t": t, "p": p });
+    };
+    app.clearRedo = function() {
+      var key = this.getEleKey();
+      if (this.redoList) {
+        this.redoList[key] = [];
+      }
     };
     app.getEleKey = function() {
       return _.indexOf(this.boxes, this.currentEle);
@@ -2125,7 +2543,7 @@
             this.recordText();
           }
           c[methodName](param);
-          if (methodName !== "dotRepeat") {
+          if (methodName !== "dotRepeat" && (vimKeys[code]["record"] || methodName === "append" || methodName === "appendLineTail" || methodName === "insert" || methodName === "insertLineHead")) {
             this._lastDotCommand = {
               methodName,
               num: param,

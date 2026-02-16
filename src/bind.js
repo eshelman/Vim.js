@@ -35,6 +35,29 @@ exports.listen = function(app) {
             App.recordText();
             return;
         }
+        // Handle pending text-object request (di/da/ci/ca/yi/ya waiting for specifier)
+        if (App.vim.textObjectRequest) {
+            var char = ev.key;
+            if (!char || char.length > 1) {
+                char = String.fromCharCode(code);
+                if (ev.shiftKey) {
+                    char = char.toUpperCase();
+                } else {
+                    char = char.toLowerCase();
+                }
+            }
+            if (char.length !== 1) {
+                App.vim.textObjectRequest = null;
+                return;
+            }
+            var req = App.vim.textObjectRequest;
+            App.vim.textObjectRequest = null;
+            if (req.operator === 'd' || req.operator === 'c') {
+                App.recordText();
+            }
+            App.controller.executeTextObject(char, req);
+            return;
+        }
         // Handle pending find-char request (f/F/t/T waiting for next char)
         if (App.vim.findCharRequest) {
             var char = ev.key;
@@ -118,6 +141,16 @@ function onKeyDown(e) {
         return;
     }
     if (App.vim.isMode(GENERAL) || App.vim.isMode(VISUAL)) {
+        // Ctrl+R = redo (intercept before general Ctrl bypass)
+        if (ev.ctrlKey && code === 82) {
+            if (ev.preventDefault) {
+                ev.preventDefault();
+            } else {
+                ev.returnValue = false;
+            }
+            App.controller.redo();
+            return;
+        }
         if (ev.metaKey || ev.ctrlKey) {
             return;
         }
@@ -135,10 +168,10 @@ function onKeyDown(e) {
             }
         }
     } else {
-        if(code !== 27){
-            var p = App.textUtil.getCursorPosition();
-            App.recordText(undefined, (p-1>=0 ? p-1:p));
-        }
+        // Edit mode: do NOT record per-keystroke state.
+        // The pre-edit state was already recorded when entering edit mode
+        // (via the record flag on the route or startEditCapture).
+        // Recording every keystroke would break undo granularity.
     }
     App._fire('input', ev, replaced);
 }

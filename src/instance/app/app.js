@@ -55,6 +55,7 @@ exports.destroy = function() {
     this.controller = undefined;
     this.clipboard = undefined;
     this.doList = [];
+    this.redoList = [];
     this._lastDotCommand = undefined;
     this._editStartText = undefined;
     this._editStartPos = undefined;
@@ -125,7 +126,24 @@ exports.recordText = function(t, p) {
         this.doList[key].shift();
     }
     this.doList[key].push(data);
+    // New edit invalidates redo history
+    this.clearRedo();
     this._log(this.doList);
+}
+
+exports.recordRedo = function(t, p) {
+    var key = this.getEleKey();
+    if (!this.redoList[key]) {
+        this.redoList[key] = [];
+    }
+    this.redoList[key].push({ 't': t, 'p': p });
+}
+
+exports.clearRedo = function() {
+    var key = this.getEleKey();
+    if (this.redoList) {
+        this.redoList[key] = [];
+    }
 }
 
 exports.getEleKey = function() {

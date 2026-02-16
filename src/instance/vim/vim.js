@@ -19,6 +19,7 @@ exports._init = function (tu) {
 exports.resetVim = function() {
     this.replaceRequest = false;
     this.findCharRequest = null;
+    this.textObjectRequest = null;
     this.visualPosition = undefined;
     this.visualCursor = undefined;
 }
@@ -811,4 +812,263 @@ exports.moveToWordEndBig = function() {
         textUtil.select(this.visualPosition, i + 1);
         this.visualCursor = i + 1;
     }
+};
+
+// ==============================
+// Text object range methods
+// ==============================
+
+// Helper: determine character class
+// Returns 'word', 'symbol', or 'space'
+exports._charClass = function(ch) {
+    if (/[\w\u4e00-\u9fa5]/.test(ch)) return 'word';
+    if (/\s/.test(ch)) return 'space';
+    return 'symbol';
+};
+
+// iw — inner word: the word (or whitespace block) under the cursor
+// Returns [start, end) range
+exports.getInnerWordRange = function(p) {
+    var text = textUtil.getText();
+    var len = text.length;
+    if (p < 0 || p >= len) return null;
+
+    var ch = text.charAt(p);
+    var cls = this._charClass(ch);
+
+    // Expand backward while same class
+    var start = p;
+    while (start > 0 && this._charClass(text.charAt(start - 1)) === cls) {
+        start--;
+    }
+
+    // Expand forward while same class
+    var end = p + 1;
+    while (end < len && this._charClass(text.charAt(end)) === cls) {
+        end++;
+    }
+
+    return [start, end];
+};
+
+// aw — a word: word + surrounding whitespace
+// If trailing whitespace exists, include it; otherwise include leading whitespace
+// Returns [start, end) range
+exports.getAWordRange = function(p) {
+    var text = textUtil.getText();
+    var len = text.length;
+    if (p < 0 || p >= len) return null;
+
+    var inner = this.getInnerWordRange(p);
+    if (!inner) return null;
+    var start = inner[0];
+    var end = inner[1];
+
+    // Try trailing whitespace first
+    var trailEnd = end;
+    while (trailEnd < len && /\s/.test(text.charAt(trailEnd))) {
+        trailEnd++;
+    }
+
+    if (trailEnd > end) {
+        return [start, trailEnd];
+    }
+
+    // No trailing whitespace — try leading whitespace
+    var leadStart = start;
+    while (leadStart > 0 && /\s/.test(text.charAt(leadStart - 1))) {
+        leadStart--;
+    }
+
+    if (leadStart < start) {
+        return [leadStart, end];
+    }
+
+    // No surrounding whitespace
+    return [start, end];
+};
+
+// Inner quote range: find enclosing quotes around cursor position
+// Returns [start, end) range where start is char after opening quote, end is closing quote position
+exports.getInnerQuoteRange = function(p, quoteChar) {
+    var text = textUtil.getText();
+    var len = text.length;
+    if (p < 0 || p >= len) return null;
+
+    var openPos = -1;
+    var closePos = -1;
+
+    // Strategy: find all quote positions on this "line" (or full text for simplicity),
+    // then determine which pair encloses the cursor.
+    // Collect all quote positions
+    var quotes = [];
+    for (var i = 0; i < len; i++) {
+        if (text.charAt(i) === quoteChar) {
+            quotes.push(i);
+        }
+    }
+
+    // Find the pair that encloses p
+    // Quotes pair up as (0,1), (2,3), (4,5), etc.
+    for (var j = 0; j < quotes.length - 1; j += 2) {
+        var qOpen = quotes[j];
+        var qClose = quotes[j + 1];
+        if (p >= qOpen && p <= qClose) {
+            openPos = qOpen;
+            closePos = qClose;
+            break;
+        }
+    }
+
+    if (openPos === -1 || closePos === -1) return null;
+    if (closePos - openPos <= 1) return null; // empty quotes — nothing to delete
+
+    return [openPos + 1, closePos];
+};
+
+// A quote range: including the quotes themselves
+exports.getAQuoteRange = function(p, quoteChar) {
+    var text = textUtil.getText();
+    var len = text.length;
+    if (p < 0 || p >= len) return null;
+
+    var quotes = [];
+    for (var i = 0; i < len; i++) {
+        if (text.charAt(i) === quoteChar) {
+            quotes.push(i);
+        }
+    }
+
+    for (var j = 0; j < quotes.length - 1; j += 2) {
+        var qOpen = quotes[j];
+        var qClose = quotes[j + 1];
+        if (p >= qOpen && p <= qClose) {
+            return [qOpen, qClose + 1];
+        }
+    }
+
+    return null;
+};
+
+// Inner pair range: find matching pair delimiters (parens, braces, brackets)
+// Handles nesting properly
+exports.getInnerPairRange = function(p, openChar, closeChar) {
+    var text = textUtil.getText();
+    var len = text.length;
+    if (p < 0 || p >= len) return null;
+
+    // Find the opening delimiter by scanning backward, counting nesting
+    var openPos = -1;
+    var depth = 0;
+
+    // If cursor is on the closing delimiter, start scanning from just before it
+    var scanStart = p;
+    if (text.charAt(p) === closeChar && openChar !== closeChar) {
+        scanStart = p - 1;
+        // We found the close, now find its matching open
+        depth = 0;
+        for (var i = scanStart; i >= 0; i--) {
+            if (text.charAt(i) === closeChar) {
+                depth++;
+            } else if (text.charAt(i) === openChar) {
+                if (depth === 0) {
+                    openPos = i;
+                    break;
+                }
+                depth--;
+            }
+        }
+        if (openPos !== -1) {
+            if (p - openPos <= 1) return null;
+            return [openPos + 1, p];
+        }
+        return null;
+    }
+
+    // If cursor is on the opening delimiter, find matching close
+    if (text.charAt(p) === openChar && openChar !== closeChar) {
+        depth = 0;
+        for (var i = p + 1; i < len; i++) {
+            if (text.charAt(i) === openChar) {
+                depth++;
+            } else if (text.charAt(i) === closeChar) {
+                if (depth === 0) {
+                    if (i - p <= 1) return null;
+                    return [p + 1, i];
+                }
+                depth--;
+            }
+        }
+        return null;
+    }
+
+    // General case: scan backward for opening, then forward for closing
+    depth = 0;
+    for (var i = p; i >= 0; i--) {
+        if (text.charAt(i) === closeChar && i !== p && openChar !== closeChar) {
+            depth++;
+        } else if (text.charAt(i) === openChar) {
+            if (depth === 0) {
+                openPos = i;
+                break;
+            }
+            depth--;
+        }
+    }
+
+    if (openPos === -1) return null;
+
+    // Now find matching close from after openPos
+    depth = 0;
+    var closePos = -1;
+    for (var i = openPos + 1; i < len; i++) {
+        if (text.charAt(i) === openChar) {
+            depth++;
+        } else if (text.charAt(i) === closeChar) {
+            if (depth === 0) {
+                closePos = i;
+                break;
+            }
+            depth--;
+        }
+    }
+
+    if (closePos === -1) return null;
+    if (closePos - openPos <= 1) return null;
+
+    return [openPos + 1, closePos];
+};
+
+// A pair range: including the delimiters themselves
+exports.getAPairRange = function(p, openChar, closeChar) {
+    var inner = this.getInnerPairRange(p, openChar, closeChar);
+    if (!inner) return null;
+    // inner[0] is openPos + 1, inner[1] is closePos
+    return [inner[0] - 1, inner[1] + 1];
+};
+
+// ==============================
+// Search motions (/, ?, n, N, *, #)
+// ==============================
+
+// Search forward for query from current cursor position
+exports.searchForward = function(query) {
+    var p = textUtil.getCursorPosition();
+    var pos = textUtil.findNext(query, p);
+    if (pos !== undefined) {
+        textUtil.select(pos, pos + 1);
+        return pos;
+    }
+    return undefined;
+};
+
+// Search backward for query from current cursor position
+exports.searchBackward = function(query) {
+    var p = textUtil.getCursorPosition();
+    var pos = textUtil.findPrev(query, p);
+    if (pos !== undefined) {
+        textUtil.select(pos, pos + 1);
+        return pos;
+    }
+    return undefined;
 };

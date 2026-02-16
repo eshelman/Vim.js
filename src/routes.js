@@ -103,4 +103,21 @@ exports.ready = function(router){
     //yank with find/till char (yf/yF/yt/yT)
     router.code('89_70', 'yf').action('yf', 'yankFindForward').action('YF', 'yankFindBackward');
     router.code('89_84', 'yt').action('yt', 'yankTillForward').action('YT', 'yankTillBackward');
+
+    //search motions (/, ?, n, N, *, #)
+    router.code(191, '/').action('/', 'searchForward').action('shift_/', 'searchBackward');
+    router.code(78, 'n').action('n', 'searchNext').action('N', 'searchPrev');
+    router.code(56, '8').action('shift_8', 'searchWordForward');
+    router.code(51, '3').action('shift_3', 'searchWordBackward');
+
+    //text objects: operator + i/a (inner/a) — sets pending textObjectRequest
+    //delete text objects (di/da)
+    router.code('68_73', 'di').action('di', 'deleteInnerObject').record(true);
+    router.code('68_65', 'da').action('da', 'deleteAObject').record(true);
+    //yank text objects (yi/ya)
+    router.code('89_73', 'yi').action('yi', 'yankInnerObject');
+    router.code('89_65', 'ya').action('ya', 'yankAObject');
+    //change text objects (ci/ca)
+    router.code('67_73', 'ci').action('ci', 'changeInnerObject').record(true);
+    router.code('67_65', 'ca').action('ca', 'changeAObject').record(true);
 }

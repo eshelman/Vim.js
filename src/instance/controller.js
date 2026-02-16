@@ -203,7 +203,32 @@ exports.delCharAfter = function (num) {
 exports.backToHistory = function () {
     var key = App.getEleKey();
     var list = App.doList[key];
-    vim.backToHistory(list);
+    if (list && list.length) {
+        // Save current state to redo stack before restoring
+        App.recordRedo(App.textUtil.getText(), App.textUtil.getCursorPosition());
+        vim.backToHistory(list);
+    }
+};
+
+exports.redo = function () {
+    var key = App.getEleKey();
+    var redoList = App.redoList[key];
+    if (redoList && redoList.length) {
+        // Save current state to undo stack directly (bypass clearRedo)
+        var t = App.textUtil.getText();
+        var p = App.textUtil.getCursorPosition();
+        if (!App.doList[key]) {
+            App.doList[key] = [];
+        }
+        if (App.doList[key].length >= App.doListDeep) {
+            App.doList[key].shift();
+        }
+        App.doList[key].push({ 't': t, 'p': p });
+        // Restore from redo
+        var data = redoList.pop();
+        textUtil.setText(data.t);
+        textUtil.select(data.p, data.p + 1);
+    }
 };
 
 exports.delCurrLine = function (num) {
@@ -560,6 +585,174 @@ exports.moveToWordEndBig = function (num) {
     App.repeatAction(function(){
         vim.moveToWordEndBig();
     }, num);
+};
+
+// ==============================
+// Text object pending state setters (called from parseRoute via compound keys)
+// ==============================
+
+exports.deleteInnerObject = function (num) {
+    vim.textObjectRequest = { operator: 'd', type: 'inner', count: num || 1 };
+};
+
+exports.deleteAObject = function (num) {
+    vim.textObjectRequest = { operator: 'd', type: 'a', count: num || 1 };
+};
+
+exports.yankInnerObject = function (num) {
+    vim.textObjectRequest = { operator: 'y', type: 'inner', count: num || 1 };
+};
+
+exports.yankAObject = function (num) {
+    vim.textObjectRequest = { operator: 'y', type: 'a', count: num || 1 };
+};
+
+exports.changeInnerObject = function (num) {
+    vim.textObjectRequest = { operator: 'c', type: 'inner', count: num || 1 };
+};
+
+exports.changeAObject = function (num) {
+    vim.textObjectRequest = { operator: 'c', type: 'a', count: num || 1 };
+};
+
+// ==============================
+// Text object execution (called after receiving the specifier character)
+// ==============================
+
+// Normalize pair characters: ) maps to (, } maps to {, ] maps to [
+var _pairMap = {
+    '(': ['(', ')'],
+    ')': ['(', ')'],
+    '{': ['{', '}'],
+    '}': ['{', '}'],
+    '[': ['[', ']'],
+    ']': ['[', ']'],
+};
+
+exports.executeTextObject = function (specifierChar, request) {
+    var p = textUtil.getCursorPosition();
+    var operator = request.operator;
+    var type = request.type;  // 'inner' or 'a'
+    var range = null;
+
+    if (specifierChar === 'w') {
+        // Word text object
+        if (type === 'inner') {
+            range = vim.getInnerWordRange(p);
+        } else {
+            range = vim.getAWordRange(p);
+        }
+    } else if (specifierChar === '"' || specifierChar === "'") {
+        // Quote text object
+        if (type === 'inner') {
+            range = vim.getInnerQuoteRange(p, specifierChar);
+        } else {
+            range = vim.getAQuoteRange(p, specifierChar);
+        }
+    } else if (_pairMap[specifierChar]) {
+        // Pair text object (parens, braces, brackets)
+        var pair = _pairMap[specifierChar];
+        if (type === 'inner') {
+            range = vim.getInnerPairRange(p, pair[0], pair[1]);
+        } else {
+            range = vim.getAPairRange(p, pair[0], pair[1]);
+        }
+    }
+
+    if (!range) return;
+
+    var start = range[0];
+    var end = range[1];
+
+    if (operator === 'd') {
+        // Delete the range
+        vim.pasteInNewLineRequest = false;
+        App.clipboard = textUtil.getText(start, end);
+        textUtil.delete(start, end);
+        textUtil.select(start, start + 1);
+    } else if (operator === 'y') {
+        // Yank the range (no text modification)
+        vim.pasteInNewLineRequest = false;
+        App.clipboard = textUtil.getText(start, end);
+    } else if (operator === 'c') {
+        // Change: delete the range and enter edit mode
+        vim.pasteInNewLineRequest = false;
+        App.clipboard = textUtil.getText(start, end);
+        textUtil.delete(start, end);
+        textUtil.select(start, start);
+        App.startEditCapture();
+        _timeoutIds.push(setTimeout(function () {
+            vim.switchModeTo(EDIT);
+        }, 100));
+    }
+};
+
+// ==============================
+// Search commands (/, ?, n, N, *, #)
+// ==============================
+
+// / — enter search-forward pending state
+exports.searchForward = function() {
+    App.searchRequest = { direction: 1 };
+};
+
+// ? — enter search-backward pending state
+exports.searchBackward = function() {
+    App.searchRequest = { direction: -1 };
+};
+
+// Execute a search (called programmatically or after user types query + Enter)
+exports.executeSearch = function(query, direction) {
+    App._searchState = { query: query, direction: direction };
+    if (direction === 1) {
+        vim.searchForward(query);
+    } else {
+        vim.searchBackward(query);
+    }
+};
+
+// n — repeat last search in same direction
+exports.searchNext = function(num) {
+    var state = App._searchState;
+    if (!state || !state.query) return;
+    App.repeatAction(function() {
+        if (state.direction === 1) {
+            vim.searchForward(state.query);
+        } else {
+            vim.searchBackward(state.query);
+        }
+    }, num);
+};
+
+// N — repeat last search in opposite direction
+exports.searchPrev = function(num) {
+    var state = App._searchState;
+    if (!state || !state.query) return;
+    App.repeatAction(function() {
+        if (state.direction === -1) {
+            vim.searchForward(state.query);
+        } else {
+            vim.searchBackward(state.query);
+        }
+    }, num);
+};
+
+// * — search forward for word under cursor
+exports.searchWordForward = function() {
+    var word = textUtil.getWordUnderCursor();
+    if (word) {
+        App._searchState = { query: word, direction: 1 };
+        vim.searchForward(word);
+    }
+};
+
+// # — search backward for word under cursor
+exports.searchWordBackward = function() {
+    var word = textUtil.getWordUnderCursor();
+    if (word) {
+        App._searchState = { query: word, direction: -1 };
+        vim.searchBackward(word);
+    }
 };
 
 exports.destroy = function() {

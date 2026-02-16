@@ -59,6 +59,7 @@ export function setup(text, cursor) {
   app.currentEle = el;
   app.boxes = [el];
   app.doList = [];
+  app.redoList = [];
   app._number = '';
   app._events = {};
   app.classes = {};

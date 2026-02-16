@@ -27,3 +27,9 @@ exports.visualPosition = undefined;
  * @type {undefined}
  */
 exports.visualCursor = undefined;
+
+/**
+ * pending text object request (e.g., after pressing di, da, ci, ca, yi, ya)
+ * @type {null}
+ */
+exports.textObjectRequest = null;
