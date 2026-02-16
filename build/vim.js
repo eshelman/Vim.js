@@ -1256,14 +1256,14 @@
       while (i > 0 && /\s/.test(text2.charAt(i))) {
         i--;
       }
-      if (i > 0 && /[.!?]/.test(text2.charAt(i))) {
+      if (i > 0 && /[.!?]/.test(text2.charAt(i)) && (i + 1 >= text2.length || /\s/.test(text2.charAt(i + 1)))) {
         i--;
       }
       while (i > 0 && /\s/.test(text2.charAt(i))) {
         i--;
       }
       while (i > 0) {
-        if (/[.!?]/.test(text2.charAt(i))) {
+        if (/[.!?]/.test(text2.charAt(i)) && (i + 1 >= text2.length || /\s/.test(text2.charAt(i + 1)))) {
           var j = i + 1;
           while (j < text2.length && /\s/.test(text2.charAt(j))) {
             j++;
@@ -1288,7 +1288,7 @@
       if (p >= len - 1) return [len - 1, void 0];
       var i = p;
       while (i < len) {
-        if (/[.!?]/.test(text2.charAt(i))) {
+        if (/[.!?]/.test(text2.charAt(i)) && (i + 1 >= len || /\s/.test(text2.charAt(i + 1)))) {
           i++;
           while (i < len && /\s/.test(text2.charAt(i))) {
             i++;

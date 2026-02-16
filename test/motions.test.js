@@ -235,6 +235,17 @@ describe(') - next sentence', () => {
     // Should have moved forward past first sentence
     expect(pos).toBeGreaterThan(0);
   });
+
+  test('dot in abbreviation does not create sentence boundary', () => {
+    var text = 'Welcome to the Vim.js interactive demo!';
+    var env = setup(text, 0);
+    // ) should skip past the . in Vim.js and land after the ! at end
+    pressKey(env.app, KEY.ZERO, { shift: true });
+    var pos = getCursor(env);
+    // Should NOT stop at "js" (position 19) — "Vim.js" is not a sentence boundary
+    // The only sentence terminator is the ! at position 38
+    expect(pos).toBe(text.length - 1);
+  });
 });
 
 describe('{ - previous paragraph', () => {

@@ -330,7 +330,8 @@ exports.getPrevSentencePos = function (p) {
     }
 
     // Skip past sentence terminator at current boundary so we find the previous one
-    if (i > 0 && /[.!?]/.test(text.charAt(i))) {
+    // A sentence terminator is .!? followed by whitespace or end-of-text
+    if (i > 0 && /[.!?]/.test(text.charAt(i)) && (i + 1 >= text.length || /\s/.test(text.charAt(i + 1)))) {
         i--;
     }
 
@@ -339,9 +340,9 @@ exports.getPrevSentencePos = function (p) {
         i--;
     }
 
-    // Scan backward for sentence terminator (.!?) or blank line (\n\n)
+    // Scan backward for sentence terminator (.!? followed by whitespace/EOT) or blank line (\n\n)
     while (i > 0) {
-        if (/[.!?]/.test(text.charAt(i))) {
+        if (/[.!?]/.test(text.charAt(i)) && (i + 1 >= text.length || /\s/.test(text.charAt(i + 1)))) {
             // Found sentence terminator, skip whitespace forward to next sentence start
             var j = i + 1;
             while (j < text.length && /\s/.test(text.charAt(j))) {
@@ -371,9 +372,9 @@ exports.getNextSentencePos = function (p) {
 
     var i = p;
 
-    // Scan forward for sentence terminator or blank line
+    // Scan forward for sentence terminator (.!? followed by whitespace/EOT) or blank line
     while (i < len) {
-        if (/[.!?]/.test(text.charAt(i))) {
+        if (/[.!?]/.test(text.charAt(i)) && (i + 1 >= len || /\s/.test(text.charAt(i + 1)))) {
             // Skip whitespace to find next sentence start
             i++;
             while (i < len && /\s/.test(text.charAt(i))) {
