@@ -21,8 +21,8 @@ exports.ready = function(router){
     //vim feature keys:
     //---------------------------
 
-    //0:move to current line head
-    router.code(48, '0').action(0, 'moveToCurrentLineHead');
+    //0:move to current line head, ):move to next sentence
+    router.code(48, '0').action(0, 'moveToCurrentLineHead').action('shift_0', 'moveToNextSentence');
     //&:move to current line tail
     router.code(52, '4').action('shift_4', 'moveToCurrentLineTail');
     //append
@@ -63,8 +63,19 @@ exports.ready = function(router){
     router.code('71_71', 'gg').action('gg', 'moveToFirstLine');
     //move to next word
     router.code(87, 'w').action('w', 'moveToNextWord').action('W', 'moveToNextWord');
+    //move to previous word
+    router.code(66, 'b').action('b', 'moveToPrevWord').action('B', 'moveToPrevBigWord');
     //copy word
     router.code('89_87', 'yw').action('yw', 'copyWord');
     //delete one word
     router.code('68_87', 'dw').action('dw', 'deleteWord').record(true);
+    //copy previous word
+    router.code('89_66', 'yb').action('yb', 'copyPrevWord');
+    //delete previous word
+    router.code('68_66', 'db').action('db', 'deletePrevWord').record(true);
+    //sentence motions
+    router.code(57, '9').action('shift_9', 'moveToPrevSentence');
+    //paragraph motions
+    router.code(219, '[').action('shift_[', 'moveToPrevParagraph');
+    router.code(221, ']').action('shift_]', 'moveToNextParagraph');
 }

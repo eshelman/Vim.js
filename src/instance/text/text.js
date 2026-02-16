@@ -269,3 +269,181 @@ exports.getCurrWordPos = function (p) {
     }
     return [p, undefined];
 };
+
+exports.getPrevWordPos = function (p) {
+    p = p || this.getCursorPosition();
+    var text = this.getText();
+
+    var i = p - 1;
+    if (i < 0) return [0, undefined];
+
+    // Skip whitespace backward
+    while (i > 0 && /\s/.test(text.charAt(i))) {
+        i--;
+    }
+
+    // Identify character class and scan backward while same class
+    var char = text.charAt(i);
+    if (/[\w\u4e00-\u9fa5]/.test(char)) {
+        while (i > 0 && /[\w\u4e00-\u9fa5]/.test(text.charAt(i - 1))) {
+            i--;
+        }
+    } else if (/\S/.test(char)) {
+        while (i > 0 && /\W/.test(text.charAt(i - 1)) && /\S/.test(text.charAt(i - 1))) {
+            i--;
+        }
+    }
+
+    return [i, undefined];
+};
+
+exports.getPrevBigWordPos = function (p) {
+    p = p || this.getCursorPosition();
+    var text = this.getText();
+
+    var i = p - 1;
+    if (i < 0) return [0, undefined];
+
+    // Skip whitespace backward
+    while (i > 0 && /\s/.test(text.charAt(i))) {
+        i--;
+    }
+
+    // Scan backward while non-whitespace
+    while (i > 0 && /\S/.test(text.charAt(i - 1))) {
+        i--;
+    }
+
+    return [i, undefined];
+};
+
+exports.getPrevSentencePos = function (p) {
+    p = p || this.getCursorPosition();
+    var text = this.getText();
+    if (p <= 0) return [0, undefined];
+
+    var i = p - 1;
+
+    // Skip whitespace backward
+    while (i > 0 && /\s/.test(text.charAt(i))) {
+        i--;
+    }
+
+    // Skip past sentence terminator at current boundary so we find the previous one
+    if (i > 0 && /[.!?]/.test(text.charAt(i))) {
+        i--;
+    }
+
+    // Skip whitespace again after skipping terminator
+    while (i > 0 && /\s/.test(text.charAt(i))) {
+        i--;
+    }
+
+    // Scan backward for sentence terminator (.!?) or blank line (\n\n)
+    while (i > 0) {
+        if (/[.!?]/.test(text.charAt(i))) {
+            // Found sentence terminator, skip whitespace forward to next sentence start
+            var j = i + 1;
+            while (j < text.length && /\s/.test(text.charAt(j))) {
+                j++;
+            }
+            return [j, undefined];
+        }
+        if (text.charAt(i) === '\n' && i > 0 && text.charAt(i - 1) === '\n') {
+            // Blank line boundary
+            var j = i + 1;
+            while (j < text.length && /\s/.test(text.charAt(j))) {
+                j++;
+            }
+            return [j, undefined];
+        }
+        i--;
+    }
+
+    return [0, undefined];
+};
+
+exports.getNextSentencePos = function (p) {
+    p = p || this.getCursorPosition();
+    var text = this.getText();
+    var len = text.length;
+    if (p >= len - 1) return [len - 1, undefined];
+
+    var i = p;
+
+    // Scan forward for sentence terminator or blank line
+    while (i < len) {
+        if (/[.!?]/.test(text.charAt(i))) {
+            // Skip whitespace to find next sentence start
+            i++;
+            while (i < len && /\s/.test(text.charAt(i))) {
+                i++;
+            }
+            if (i < len) {
+                return [i, undefined];
+            }
+            return [len - 1, undefined];
+        }
+        if (i < len - 1 && text.charAt(i) === '\n' && text.charAt(i + 1) === '\n') {
+            // Blank line boundary
+            i += 2;
+            while (i < len && /\s/.test(text.charAt(i))) {
+                i++;
+            }
+            if (i < len) {
+                return [i, undefined];
+            }
+            return [len - 1, undefined];
+        }
+        i++;
+    }
+
+    return [len - 1, undefined];
+};
+
+exports.getPrevParagraphPos = function (p) {
+    p = p || this.getCursorPosition();
+    var text = this.getText();
+    if (p <= 0) return [0, undefined];
+
+    var i = p - 1;
+
+    // Skip consecutive newlines at current position
+    while (i > 0 && text.charAt(i) === '\n') {
+        i--;
+    }
+
+    // Scan backward for blank line (\n\n)
+    while (i > 0) {
+        if (text.charAt(i) === '\n' && text.charAt(i - 1) === '\n') {
+            return [i, undefined];
+        }
+        i--;
+    }
+
+    return [0, undefined];
+};
+
+exports.getNextParagraphPos = function (p) {
+    p = p || this.getCursorPosition();
+    var text = this.getText();
+    var len = text.length;
+    if (p >= len - 1) return [len - 1, undefined];
+
+    var i = p + 1;
+
+    // Skip consecutive newlines at current position
+    while (i < len - 1 && text.charAt(i) === '\n') {
+        i++;
+    }
+
+    // Scan forward for blank line (\n\n)
+    while (i < len - 1) {
+        if (text.charAt(i) === '\n' && text.charAt(i + 1) === '\n') {
+            return [i + 1, undefined];
+        }
+        i++;
+    }
+
+    return [len - 1, undefined];
+};

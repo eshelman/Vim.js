@@ -355,3 +355,121 @@ exports.deleteWord = function () {
     }
     return t;
 };
+
+exports.moveToPrevWord = function () {
+    var p;
+    if (this.isMode(VISUAL)) {
+        p = this.visualCursor;
+    }
+    var poses = textUtil.getPrevWordPos(p);
+    var sp = poses[0];
+    if (sp !== undefined) {
+        if (this.isMode(GENERAL)) {
+            textUtil.select(sp, sp+1);
+        } else if (this.isMode(VISUAL)) {
+            textUtil.select(this.visualPosition, sp);
+            this.visualCursor = sp;
+        }
+    }
+};
+
+exports.moveToPrevBigWord = function () {
+    var p;
+    if (this.isMode(VISUAL)) {
+        p = this.visualCursor;
+    }
+    var poses = textUtil.getPrevBigWordPos(p);
+    var sp = poses[0];
+    if (sp !== undefined) {
+        if (this.isMode(GENERAL)) {
+            textUtil.select(sp, sp+1);
+        } else if (this.isMode(VISUAL)) {
+            textUtil.select(this.visualPosition, sp);
+            this.visualCursor = sp;
+        }
+    }
+};
+
+exports.moveToPrevSentence = function () {
+    var p;
+    if (this.isMode(VISUAL)) {
+        p = this.visualCursor;
+    }
+    var poses = textUtil.getPrevSentencePos(p);
+    var sp = poses[0];
+    if (sp !== undefined) {
+        if (this.isMode(GENERAL)) {
+            textUtil.select(sp, sp+1);
+        } else if (this.isMode(VISUAL)) {
+            textUtil.select(this.visualPosition, sp);
+            this.visualCursor = sp;
+        }
+    }
+};
+
+exports.moveToNextSentence = function () {
+    var p;
+    if (this.isMode(VISUAL)) {
+        p = this.visualCursor;
+    }
+    var poses = textUtil.getNextSentencePos(p);
+    var sp = poses[0];
+    if (sp !== undefined) {
+        if (this.isMode(GENERAL)) {
+            textUtil.select(sp, sp+1);
+        } else if (this.isMode(VISUAL)) {
+            textUtil.select(this.visualPosition, sp+1);
+            this.visualCursor = sp+1;
+        }
+    }
+};
+
+exports.moveToPrevParagraph = function () {
+    var p;
+    if (this.isMode(VISUAL)) {
+        p = this.visualCursor;
+    }
+    var poses = textUtil.getPrevParagraphPos(p);
+    var sp = poses[0];
+    if (sp !== undefined) {
+        if (this.isMode(GENERAL)) {
+            textUtil.select(sp, sp+1);
+        } else if (this.isMode(VISUAL)) {
+            textUtil.select(this.visualPosition, sp);
+            this.visualCursor = sp;
+        }
+    }
+};
+
+exports.moveToNextParagraph = function () {
+    var p;
+    if (this.isMode(VISUAL)) {
+        p = this.visualCursor;
+    }
+    var poses = textUtil.getNextParagraphPos(p);
+    var sp = poses[0];
+    if (sp !== undefined) {
+        if (this.isMode(GENERAL)) {
+            textUtil.select(sp, sp+1);
+        } else if (this.isMode(VISUAL)) {
+            textUtil.select(this.visualPosition, sp+1);
+            this.visualCursor = sp+1;
+        }
+    }
+};
+
+exports.deletePrevWord = function () {
+    var t;
+    var p = textUtil.getCursorPosition();
+    var poses = textUtil.getPrevWordPos(p);
+    if (poses[0] !== undefined && poses[0] < p) {
+        t = textUtil.delete(poses[0], p);
+        textUtil.select(poses[0], poses[0]+1);
+    }
+    return t;
+};
+
+exports.copyPrevWord = function (p) {
+    var poses = textUtil.getPrevWordPos(p);
+    return poses[0];
+};

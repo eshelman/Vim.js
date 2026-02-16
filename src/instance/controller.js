@@ -238,6 +238,59 @@ exports.deleteWord = function (num) {
     }, num);
 };
 
+exports.moveToPrevWord = function (num) {
+    App.repeatAction(function(){
+        vim.moveToPrevWord();
+    }, num);
+};
+
+exports.moveToPrevBigWord = function (num) {
+    App.repeatAction(function(){
+        vim.moveToPrevBigWord();
+    }, num);
+};
+
+exports.moveToPrevSentence = function (num) {
+    App.repeatAction(function(){
+        vim.moveToPrevSentence();
+    }, num);
+};
+
+exports.moveToNextSentence = function (num) {
+    App.repeatAction(function(){
+        vim.moveToNextSentence();
+    }, num);
+};
+
+exports.moveToPrevParagraph = function (num) {
+    App.repeatAction(function(){
+        vim.moveToPrevParagraph();
+    }, num);
+};
+
+exports.moveToNextParagraph = function (num) {
+    App.repeatAction(function(){
+        vim.moveToNextParagraph();
+    }, num);
+};
+
+exports.deletePrevWord = function (num) {
+    vim.pasteInNewLineRequest = false;
+    App.repeatAction(function () {
+       return vim.deletePrevWord();
+    }, num);
+};
+
+exports.copyPrevWord = function (num) {
+    vim.pasteInNewLineRequest = false;
+    var ep = textUtil.getCursorPosition();
+    var sp;
+    App.repeatAction(function(){
+        sp = vim.copyPrevWord(sp);
+    }, num);
+    App.clipboard = textUtil.getText(sp, ep);
+};
+
 exports.destroy = function() {
     for (var i = 0; i < _timeoutIds.length; i++) {
         clearTimeout(_timeoutIds[i]);

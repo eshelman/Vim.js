@@ -416,6 +416,116 @@
       }
       return t;
     };
+    vim.moveToPrevWord = function() {
+      var p;
+      if (this.isMode(VISUAL)) {
+        p = this.visualCursor;
+      }
+      var poses = textUtil.getPrevWordPos(p);
+      var sp = poses[0];
+      if (sp !== void 0) {
+        if (this.isMode(GENERAL)) {
+          textUtil.select(sp, sp + 1);
+        } else if (this.isMode(VISUAL)) {
+          textUtil.select(this.visualPosition, sp);
+          this.visualCursor = sp;
+        }
+      }
+    };
+    vim.moveToPrevBigWord = function() {
+      var p;
+      if (this.isMode(VISUAL)) {
+        p = this.visualCursor;
+      }
+      var poses = textUtil.getPrevBigWordPos(p);
+      var sp = poses[0];
+      if (sp !== void 0) {
+        if (this.isMode(GENERAL)) {
+          textUtil.select(sp, sp + 1);
+        } else if (this.isMode(VISUAL)) {
+          textUtil.select(this.visualPosition, sp);
+          this.visualCursor = sp;
+        }
+      }
+    };
+    vim.moveToPrevSentence = function() {
+      var p;
+      if (this.isMode(VISUAL)) {
+        p = this.visualCursor;
+      }
+      var poses = textUtil.getPrevSentencePos(p);
+      var sp = poses[0];
+      if (sp !== void 0) {
+        if (this.isMode(GENERAL)) {
+          textUtil.select(sp, sp + 1);
+        } else if (this.isMode(VISUAL)) {
+          textUtil.select(this.visualPosition, sp);
+          this.visualCursor = sp;
+        }
+      }
+    };
+    vim.moveToNextSentence = function() {
+      var p;
+      if (this.isMode(VISUAL)) {
+        p = this.visualCursor;
+      }
+      var poses = textUtil.getNextSentencePos(p);
+      var sp = poses[0];
+      if (sp !== void 0) {
+        if (this.isMode(GENERAL)) {
+          textUtil.select(sp, sp + 1);
+        } else if (this.isMode(VISUAL)) {
+          textUtil.select(this.visualPosition, sp + 1);
+          this.visualCursor = sp + 1;
+        }
+      }
+    };
+    vim.moveToPrevParagraph = function() {
+      var p;
+      if (this.isMode(VISUAL)) {
+        p = this.visualCursor;
+      }
+      var poses = textUtil.getPrevParagraphPos(p);
+      var sp = poses[0];
+      if (sp !== void 0) {
+        if (this.isMode(GENERAL)) {
+          textUtil.select(sp, sp + 1);
+        } else if (this.isMode(VISUAL)) {
+          textUtil.select(this.visualPosition, sp);
+          this.visualCursor = sp;
+        }
+      }
+    };
+    vim.moveToNextParagraph = function() {
+      var p;
+      if (this.isMode(VISUAL)) {
+        p = this.visualCursor;
+      }
+      var poses = textUtil.getNextParagraphPos(p);
+      var sp = poses[0];
+      if (sp !== void 0) {
+        if (this.isMode(GENERAL)) {
+          textUtil.select(sp, sp + 1);
+        } else if (this.isMode(VISUAL)) {
+          textUtil.select(this.visualPosition, sp + 1);
+          this.visualCursor = sp + 1;
+        }
+      }
+    };
+    vim.deletePrevWord = function() {
+      var t;
+      var p = textUtil.getCursorPosition();
+      var poses = textUtil.getPrevWordPos(p);
+      if (poses[0] !== void 0 && poses[0] < p) {
+        t = textUtil.delete(poses[0], p);
+        textUtil.select(poses[0], poses[0] + 1);
+      }
+      return t;
+    };
+    vim.copyPrevWord = function(p) {
+      var poses = textUtil.getPrevWordPos(p);
+      return poses[0];
+    };
     return vim;
   }
   var text = {};
@@ -641,6 +751,136 @@
       }
       return [p, void 0];
     };
+    text.getPrevWordPos = function(p) {
+      p = p || this.getCursorPosition();
+      var text2 = this.getText();
+      var i = p - 1;
+      if (i < 0) return [0, void 0];
+      while (i > 0 && /\s/.test(text2.charAt(i))) {
+        i--;
+      }
+      var char = text2.charAt(i);
+      if (/[\w\u4e00-\u9fa5]/.test(char)) {
+        while (i > 0 && /[\w\u4e00-\u9fa5]/.test(text2.charAt(i - 1))) {
+          i--;
+        }
+      } else if (/\S/.test(char)) {
+        while (i > 0 && /\W/.test(text2.charAt(i - 1)) && /\S/.test(text2.charAt(i - 1))) {
+          i--;
+        }
+      }
+      return [i, void 0];
+    };
+    text.getPrevBigWordPos = function(p) {
+      p = p || this.getCursorPosition();
+      var text2 = this.getText();
+      var i = p - 1;
+      if (i < 0) return [0, void 0];
+      while (i > 0 && /\s/.test(text2.charAt(i))) {
+        i--;
+      }
+      while (i > 0 && /\S/.test(text2.charAt(i - 1))) {
+        i--;
+      }
+      return [i, void 0];
+    };
+    text.getPrevSentencePos = function(p) {
+      p = p || this.getCursorPosition();
+      var text2 = this.getText();
+      if (p <= 0) return [0, void 0];
+      var i = p - 1;
+      while (i > 0 && /\s/.test(text2.charAt(i))) {
+        i--;
+      }
+      if (i > 0 && /[.!?]/.test(text2.charAt(i))) {
+        i--;
+      }
+      while (i > 0 && /\s/.test(text2.charAt(i))) {
+        i--;
+      }
+      while (i > 0) {
+        if (/[.!?]/.test(text2.charAt(i))) {
+          var j = i + 1;
+          while (j < text2.length && /\s/.test(text2.charAt(j))) {
+            j++;
+          }
+          return [j, void 0];
+        }
+        if (text2.charAt(i) === "\n" && i > 0 && text2.charAt(i - 1) === "\n") {
+          var j = i + 1;
+          while (j < text2.length && /\s/.test(text2.charAt(j))) {
+            j++;
+          }
+          return [j, void 0];
+        }
+        i--;
+      }
+      return [0, void 0];
+    };
+    text.getNextSentencePos = function(p) {
+      p = p || this.getCursorPosition();
+      var text2 = this.getText();
+      var len = text2.length;
+      if (p >= len - 1) return [len - 1, void 0];
+      var i = p;
+      while (i < len) {
+        if (/[.!?]/.test(text2.charAt(i))) {
+          i++;
+          while (i < len && /\s/.test(text2.charAt(i))) {
+            i++;
+          }
+          if (i < len) {
+            return [i, void 0];
+          }
+          return [len - 1, void 0];
+        }
+        if (i < len - 1 && text2.charAt(i) === "\n" && text2.charAt(i + 1) === "\n") {
+          i += 2;
+          while (i < len && /\s/.test(text2.charAt(i))) {
+            i++;
+          }
+          if (i < len) {
+            return [i, void 0];
+          }
+          return [len - 1, void 0];
+        }
+        i++;
+      }
+      return [len - 1, void 0];
+    };
+    text.getPrevParagraphPos = function(p) {
+      p = p || this.getCursorPosition();
+      var text2 = this.getText();
+      if (p <= 0) return [0, void 0];
+      var i = p - 1;
+      while (i > 0 && text2.charAt(i) === "\n") {
+        i--;
+      }
+      while (i > 0) {
+        if (text2.charAt(i) === "\n" && text2.charAt(i - 1) === "\n") {
+          return [i, void 0];
+        }
+        i--;
+      }
+      return [0, void 0];
+    };
+    text.getNextParagraphPos = function(p) {
+      p = p || this.getCursorPosition();
+      var text2 = this.getText();
+      var len = text2.length;
+      if (p >= len - 1) return [len - 1, void 0];
+      var i = p + 1;
+      while (i < len - 1 && text2.charAt(i) === "\n") {
+        i++;
+      }
+      while (i < len - 1) {
+        if (text2.charAt(i) === "\n" && text2.charAt(i + 1) === "\n") {
+          return [i + 1, void 0];
+        }
+        i++;
+      }
+      return [len - 1, void 0];
+    };
     return text;
   }
   var controller = {};
@@ -852,6 +1092,51 @@
         return vim2.deleteWord();
       }, num);
     };
+    controller.moveToPrevWord = function(num) {
+      App.repeatAction(function() {
+        vim2.moveToPrevWord();
+      }, num);
+    };
+    controller.moveToPrevBigWord = function(num) {
+      App.repeatAction(function() {
+        vim2.moveToPrevBigWord();
+      }, num);
+    };
+    controller.moveToPrevSentence = function(num) {
+      App.repeatAction(function() {
+        vim2.moveToPrevSentence();
+      }, num);
+    };
+    controller.moveToNextSentence = function(num) {
+      App.repeatAction(function() {
+        vim2.moveToNextSentence();
+      }, num);
+    };
+    controller.moveToPrevParagraph = function(num) {
+      App.repeatAction(function() {
+        vim2.moveToPrevParagraph();
+      }, num);
+    };
+    controller.moveToNextParagraph = function(num) {
+      App.repeatAction(function() {
+        vim2.moveToNextParagraph();
+      }, num);
+    };
+    controller.deletePrevWord = function(num) {
+      vim2.pasteInNewLineRequest = false;
+      App.repeatAction(function() {
+        return vim2.deletePrevWord();
+      }, num);
+    };
+    controller.copyPrevWord = function(num) {
+      vim2.pasteInNewLineRequest = false;
+      var ep = textUtil.getCursorPosition();
+      var sp;
+      App.repeatAction(function() {
+        sp = vim2.copyPrevWord(sp);
+      }, num);
+      App.clipboard = textUtil.getText(sp, ep);
+    };
     controller.destroy = function() {
       for (var i = 0; i < _timeoutIds.length; i++) {
         clearTimeout(_timeoutIds[i]);
@@ -904,7 +1189,7 @@
       router2.code(40, "Down").action("Down", "selectNextLine");
       router2.code(45, "Insert").action("Insert", "insert");
       router2.code(46, "Delete").action("Delete", "delCharAfter").record(true);
-      router2.code(48, "0").action(0, "moveToCurrentLineHead");
+      router2.code(48, "0").action(0, "moveToCurrentLineHead").action("shift_0", "moveToNextSentence");
       router2.code(52, "4").action("shift_4", "moveToCurrentLineTail");
       router2.code(65, "a").action("a", "append").action("A", "appendLineTail");
       router2.code(73, "i").action("i", "insert").action("I", "insertLineHead");
@@ -926,8 +1211,14 @@
       router2.code(71, "g").action("G", "moveToLastLine");
       router2.code("71_71", "gg").action("gg", "moveToFirstLine");
       router2.code(87, "w").action("w", "moveToNextWord").action("W", "moveToNextWord");
+      router2.code(66, "b").action("b", "moveToPrevWord").action("B", "moveToPrevBigWord");
       router2.code("89_87", "yw").action("yw", "copyWord");
       router2.code("68_87", "dw").action("dw", "deleteWord").record(true);
+      router2.code("89_66", "yb").action("yb", "copyPrevWord");
+      router2.code("68_66", "db").action("db", "deletePrevWord").record(true);
+      router2.code(57, "9").action("shift_9", "moveToPrevSentence");
+      router2.code(219, "[").action("shift_[", "moveToPrevParagraph");
+      router2.code(221, "]").action("shift_]", "moveToNextParagraph");
     };
     return routes;
   }
