@@ -217,4 +217,32 @@ describe('. - dot repeat', () => {
     pressKey(env.app, KEY.DOT);
     expect(getText(env)).toBe('cde');
   });
+
+  test('repeats dw after motion (not the motion)', () => {
+    var env = setup('aaa bbb ccc ddd', 0);
+    pressCompoundKey(env.app, KEY.D, KEY.W);
+    expect(getText(env)).toBe('bbb ccc ddd');
+    // Navigate, then dot should repeat dw, not w
+    pressKey(env.app, KEY.W);
+    pressKey(env.app, KEY.DOT);
+    expect(getText(env)).toBe('bbb ddd');
+  });
+
+  test('repeats x after motion (not the motion)', () => {
+    var env = setup('abcdef', 0);
+    pressKey(env.app, KEY.X);
+    expect(getText(env)).toBe('bcdef');
+    pressKey(env.app, KEY.L);
+    pressKey(env.app, KEY.DOT);
+    expect(getText(env)).toBe('bdef');
+  });
+
+  test('repeats dd after motion (not the motion)', () => {
+    var env = setup('aaa\nbbb\nccc\nddd', 0);
+    pressCompoundKey(env.app, KEY.D, KEY.D);
+    expect(getText(env)).toBe('bbb\nccc\nddd');
+    pressKey(env.app, KEY.J);
+    pressKey(env.app, KEY.DOT);
+    expect(getText(env)).toBe('bbb\nddd');
+  });
 });

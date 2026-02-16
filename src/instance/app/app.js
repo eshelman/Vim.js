@@ -238,8 +238,13 @@ exports.parseRoute = function(code, ev, num) {
                 this.recordText();
             }
             c[methodName](param);
-            //track last command for dot repeat (skip the dot command itself)
-            if (methodName !== 'dotRepeat') {
+            //track last command for dot repeat:
+            //only store text-modifying commands (record flag) or
+            //edit-mode-entering commands (i/I/a/A), not pure motions
+            if (methodName !== 'dotRepeat' &&
+                (vimKeys[code]['record'] ||
+                 methodName === 'append' || methodName === 'appendLineTail' ||
+                 methodName === 'insert' || methodName === 'insertLineHead')) {
                 this._lastDotCommand = {
                     methodName: methodName,
                     num: param,
