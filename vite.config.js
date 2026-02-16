@@ -19,5 +19,8 @@ export default defineConfig(({ mode }) => {
       sourcemap: !isMinified,
       minify: isMinified ? 'esbuild' : false,
     },
+    test: {
+      include: ['test/**/*.test.js'],
+    },
   };
 });
