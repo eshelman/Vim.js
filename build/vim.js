@@ -84,7 +84,7 @@
   function requireInit$1() {
     if (hasRequiredInit$1) return init$1;
     hasRequiredInit$1 = 1;
-    init$1.currentMode = "edit_mode";
+    init$1.currentMode = "general_mode";
     init$1.replaceRequest = false;
     init$1.pasteInNewLineRequest = false;
     init$1.visualPosition = void 0;

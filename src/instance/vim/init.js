@@ -2,7 +2,7 @@
  * default mode
  * @type {string}
  */
-exports.currentMode = 'edit_mode';
+exports.currentMode = 'general_mode';
 
 /**
  * whether the request to replace a character
