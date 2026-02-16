@@ -57,10 +57,10 @@ exports.selectNextCharacter = function() {
     if (this.isMode(VISUAL) && this.visualCursor !== undefined) {
         p = this.visualCursor;
     }
-    if (this.isMode(GENERAL) && textUtil.getNextSymbol(p) == _ENTER_) {
+    if (this.isMode(GENERAL) && textUtil.getNextSymbol(p) === _ENTER_) {
         return;
     }
-    if (this.isMode(VISUAL) && textUtil.getNextSymbol(p-1) == _ENTER_) {
+    if (this.isMode(VISUAL) && textUtil.getNextSymbol(p-1) === _ENTER_) {
         return;
     }
     if (p+1 <= textUtil.getText().length) {
@@ -76,7 +76,7 @@ exports.selectNextCharacter = function() {
         textUtil.select(s, p+2);
         //special
         if (this.isMode(VISUAL)) {
-            if (s == p) {
+            if (s === p) {
                 textUtil.select(s, p+2);
                 this.visualCursor = p+2;
             } else {
@@ -84,7 +84,7 @@ exports.selectNextCharacter = function() {
             }
             if (f2 > f1 && f2 > f3) {
                 textUtil.select(s, p+1);
-            } else if (f1 == f2 && f2 - f3 == 1) {
+            } else if (f1 === f2 && f2 - f3 === 1) {
                 //textUtil.select(s, p+1);
                 this.visualPosition = f2-1;
                 this.visualCursor = p+2;
@@ -99,31 +99,31 @@ exports.selectPrevCharacter = function() {
     if (this.isMode(VISUAL) && this.visualCursor !== undefined) {
         p = this.visualCursor;
     }
-    if (textUtil.getPrevSymbol(p) == _ENTER_) {
+    if (textUtil.getPrevSymbol(p) === _ENTER_) {
         return;
     }
     var s = p-1;
     if (this.isMode(VISUAL)) {
         s = this.visualPosition;
-        if (s < p && textUtil.getPrevSymbol(p-1) == _ENTER_) {
+        if (s < p && textUtil.getPrevSymbol(p-1) === _ENTER_) {
             return;
         }
-        if (s == p) {
+        if (s === p) {
             p = p+1;
             s = s-1;
             this.visualPosition = p;
             this.visualCursor = s;
-        } else if (p == s+1) {
+        } else if (p === s+1) {
             s = s+1;
             p = p-2;
             this.visualPosition = s;
             this.visualCursor = p;
-        } else if (p == s-1) {
+        } else if (p === s-1) {
             p = s-2;
             this.visualCursor = p;
         } else {
             //default
-            if (!(s < p && (p+1 == textUtil.getSelectEndPos()))) {
+            if (!(s < p && (p+1 === textUtil.getSelectEndPos()))) {
                 p = p-1;
             }
             this.visualCursor = p;
@@ -156,7 +156,7 @@ exports.selectNextLine = function () {
     var nr = textUtil.getNextLineEnd(sp);
     var nc = nr - nl;
     var cc = textUtil.getCountFromStartToPosInCurrLine(sp);
-    if (this.isMode(VISUAL) && this.visualCursor != undefined && this.visualPosition < this.visualCursor) {
+    if (this.isMode(VISUAL) && this.visualCursor !== undefined && this.visualPosition < this.visualCursor) {
         cc = cc-1;
     }
     var p = nl + (cc > nc ? nc : cc);
@@ -168,7 +168,7 @@ exports.selectNextLine = function () {
                 p = p-1;
             }
             this.visualCursor = p;
-            if (textUtil.getSymbol(nl) == _ENTER_) {
+            if (textUtil.getSymbol(nl) === _ENTER_) {
                 textUtil.appendText(' ', nl);
                 p = p+1;
                 this.visualCursor = p;
@@ -181,7 +181,7 @@ exports.selectNextLine = function () {
         }
         textUtil.select(s, p);
         if (this.isMode(GENERAL)) {
-            if (textUtil.getSymbol(nl) == _ENTER_) {
+            if (textUtil.getSymbol(nl) === _ENTER_) {
                 textUtil.appendText(' ', nl);
             }
         }
@@ -196,7 +196,7 @@ exports.selectPrevLine = function () {
     var pl = textUtil.getPrevLineStart(sp);
     var pr = textUtil.getPrevLineEnd(sp);
     var cc = textUtil.getCountFromStartToPosInCurrLine(sp);
-    if (this.isMode(VISUAL) && this.visualCursor != undefined && this.visualPosition < this.visualCursor) {
+    if (this.isMode(VISUAL) && this.visualCursor !== undefined && this.visualPosition < this.visualCursor) {
         cc = cc-1;
     }
     var pc = pr - pl;
@@ -206,14 +206,14 @@ exports.selectPrevLine = function () {
         var e = p;
         if (this.isMode(VISUAL)) {
             s = this.visualPosition;
-            if (textUtil.getPrevSymbol(p) != _ENTER_ && s != p-1 && e < s) {
+            if (textUtil.getPrevSymbol(p) !== _ENTER_ && s !== p-1 && e < s) {
                 e = p-1;
             }
             this.visualCursor = e;
         }
         textUtil.select(s, e);
         if (this.isMode(GENERAL)) {
-            if (textUtil.getSymbol(pl) == _ENTER_) {
+            if (textUtil.getSymbol(pl) === _ENTER_) {
                 textUtil.appendText(' ', pl);
             }
         }
@@ -247,7 +247,7 @@ exports.moveToCurrentLineTail = function () {
             sp = textUtil.getCursorPosition();
         }
         p = textUtil.getCurrLineEndPos(sp);
-        if (sp == p-1) {
+        if (sp === p-1) {
             p = p-1
         }
         for (sp;sp<p;sp++){

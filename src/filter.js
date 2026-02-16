@@ -8,7 +8,7 @@ const VISUAL  = 'visual_mode';
 
 exports.code = function (App, code) {
     var passed = true;
-    if (code == 229) {
+    if (code === 229) {
         if (App.vim.isMode(GENERAL) || App.vim.isMode(VISUAL)) {
             passed = false;
             var msg = 'Execution failure! Please use the vim instructions in the English input method.';

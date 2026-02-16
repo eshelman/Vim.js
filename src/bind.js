@@ -7,6 +7,8 @@ const VISUAL  = 'visual_mode';
 var _ = require('./util/helper.js');
 var filter = require('./filter.js');
 var App;
+var _timeoutIds = [];
+var _boundListeners = [];
 
 exports.listen = function(app) {
     App = app;
@@ -14,9 +16,12 @@ exports.listen = function(app) {
     App.boxes = boxes;
     for (var i = 0; i<boxes.length;i++) {
         var box = boxes[i];
-        box.onfocus = onFocus;
-        box.onclick = onClick;
-        box.onkeydown = onKeyDown;
+        box.addEventListener('focus', onFocus);
+        box.addEventListener('click', onClick);
+        box.addEventListener('keydown', onKeyDown);
+        _boundListeners.push({ element: box, type: 'focus', handler: onFocus });
+        _boundListeners.push({ element: box, type: 'click', handler: onClick });
+        _boundListeners.push({ element: box, type: 'keydown', handler: onKeyDown });
     }
     App._on('reset_cursor_position', function (e) {
         if (App.vim.isMode(GENERAL) || App.vim.isMode(VISUAL)) {
@@ -41,6 +46,24 @@ exports.listen = function(app) {
             App.parseRoute(code, ev, num);
         }
     });
+}
+
+exports.destroy = function() {
+    for (var i = 0; i < _boundListeners.length; i++) {
+        var entry = _boundListeners[i];
+        entry.element.removeEventListener(entry.type, entry.handler);
+    }
+    _boundListeners = [];
+    for (var j = 0; j < _timeoutIds.length; j++) {
+        clearTimeout(_timeoutIds[j]);
+    }
+    _timeoutIds = [];
+    App = null;
+}
+
+exports.trackTimeout = function(id) {
+    _timeoutIds.push(id);
+    return id;
 }
 
 function onFocus() {
@@ -69,9 +92,9 @@ function onKeyDown(e) {
         if (App.vim.replaceRequest) {
             replaced = true;
             App.vim.replaceRequest = false;
-            setTimeout(function () {
+            _timeoutIds.push(setTimeout(function () {
                 App.vim.selectPrevCharacter();
-            }, 50);
+            }, 50));
         } else {
             if (ev.preventDefault) {
                 ev.preventDefault();
@@ -80,7 +103,7 @@ function onKeyDown(e) {
             }
         }
     } else {
-        if(code != 27){
+        if(code !== 27){
             var p = App.textUtil.getCursorPosition();
             App.recordText(undefined, (p-1>=0 ? p-1:p));
         }

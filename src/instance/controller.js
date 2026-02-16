@@ -10,6 +10,7 @@ const _ENTER_ = '\n';
 var App;
 var vim;
 var textUtil;
+var _timeoutIds = [];
 
 exports._init = function (app) {
     App = app;
@@ -75,7 +76,7 @@ exports.switchModeToVisual = function () {
         } else {
             textUtil.select(s, s+1);
         }
-        if (textUtil.getPrevSymbol(s) == _ENTER_) {
+        if (textUtil.getPrevSymbol(s) === _ENTER_) {
             textUtil.select(s, s+1);
         }
         vim.switchModeTo(GENERAL);
@@ -88,9 +89,9 @@ exports.switchModeToVisual = function () {
 
 exports.append = function() {
     vim.append();
-    setTimeout(function () {
+    _timeoutIds.push(setTimeout(function () {
         vim.switchModeTo(EDIT);
-    }, 100);
+    }, 100));
 };
 
 exports.appendLineTail = function () {
@@ -100,9 +101,9 @@ exports.appendLineTail = function () {
 
 exports.insert = function() {
     vim.insert();
-    setTimeout(function () {
+    _timeoutIds.push(setTimeout(function () {
         vim.switchModeTo(EDIT);
-    }, 100);
+    }, 100));
 };
 
 exports.insertLineHead = function () {
@@ -175,16 +176,16 @@ exports.replaceChar = function () {
 
 exports.appendNewLine = function () {
     vim.appendNewLine();
-    setTimeout(function () {
+    _timeoutIds.push(setTimeout(function () {
         vim.switchModeTo(EDIT);
-    }, 100);
+    }, 100));
 };
 
 exports.insertNewLine = function () {
     vim.insertNewLine();
-    setTimeout(function () {
+    _timeoutIds.push(setTimeout(function () {
         vim.switchModeTo(EDIT);
-    }, 100);
+    }, 100));
 };
 
 exports.delCharAfter = function (num) {
@@ -235,4 +236,14 @@ exports.deleteWord = function (num) {
     App.repeatAction(function () {
        return vim.deleteWord();
     }, num);
+};
+
+exports.destroy = function() {
+    for (var i = 0; i < _timeoutIds.length; i++) {
+        clearTimeout(_timeoutIds[i]);
+    }
+    _timeoutIds = [];
+    App = null;
+    vim = null;
+    textUtil = null;
 };

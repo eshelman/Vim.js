@@ -7,7 +7,7 @@ module.exports = {
     /**
      * whether to print debut messages
      */
-    debug: true,
+    debug: false,
 
     /**
      * how to show msg from vim app
@@ -15,7 +15,7 @@ module.exports = {
      * @param code
      */
     showMsg: function(msg, code) {
-        alert(msg);
+        console.warn('vim.js: ' + msg);
     },
 
     /**

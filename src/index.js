@@ -62,6 +62,13 @@ p.class('Controller', Controller);
  */
 window.vim = {
     open: function(options){
-        return new App(options)
+        this._app = new App(options);
+        return this._app;
+    },
+    destroy: function(){
+        if (this._app) {
+            this._app.destroy();
+            this._app = null;
+        }
     }
 };

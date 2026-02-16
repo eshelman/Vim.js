@@ -24,46 +24,16 @@ exports.setText = function (t) {
 };
 
 exports.getSelectedText = function() {
-    //var t = document.getSelection() || document.selection.createRange().text;
-    var t;
-    if(document.selection){
-        t = document.selection.createRange().text;// for IE
-    } else {
-        t = el.value.substring(el.selectionStart, el.selectionEnd);
-    }
+    var t = el.value.substring(el.selectionStart, el.selectionEnd);
     return t + '';
 };
 
 exports.getCursorPosition = function () {
-    if (document.selection) {
-        el.focus();
-        var ds = document.selection;
-        var range = ds.createRange();
-        var stored_range = range.duplicate();
-        stored_range.moveToElementText(el);
-        stored_range.setEndPoint("EndToEnd", range);
-        el.selectionStart = stored_range.text.length - range.text.length;
-        el.selectionEnd = el.selectionStart + range.text.length;
-        return el.selectionStart;
-    } else {
-        return el.selectionStart
-    }
+    return el.selectionStart;
 };
 
 exports.getSelectEndPos = function () {
-    if (document.selection) {
-        el.focus();
-        var ds = document.selection;
-        var range = ds.createRange();
-        var stored_range = range.duplicate();
-        stored_range.moveToElementText(el);
-        stored_range.setEndPoint("EndToEnd", range);
-        el.selectionStart = stored_range.text.length - range.text.length;
-        el.selectionEnd = el.selectionStart + range.text.length;
-        return el.selectionEnd;
-    } else {
-        return el.selectionEnd;
-    }
+    return el.selectionEnd;
 };
 
 exports.select = function (start, end) {
@@ -78,16 +48,8 @@ exports.select = function (start, end) {
     if (end > this.getText().length) {
         end = this.getText().length;
     }
-    if(document.selection){
-        var range = el.createTextRange();
-        range.moveEnd('character', -el.value.length);
-        range.moveEnd('character', end);
-        range.moveStart('character', start);
-        range.select();
-    }else{
-        el.setSelectionRange(start, end);
-        el.focus();
-    }
+    el.setSelectionRange(start, end);
+    el.focus();
 };
 
 exports.appendText = function (t, p, paste, isNewLine) {
@@ -170,7 +132,7 @@ exports.getCurrLineEndPos = function (p) {
     if (p === undefined) {
         p = this.getCursorPosition();
     }
-    if (this.getSymbol(p) == _ENTER_) {
+    if (this.getSymbol(p) === _ENTER_) {
         return p;
     }
     var end = this.findSymbolAfter(p, _ENTER_);
@@ -224,7 +186,7 @@ exports.getPrevLineStart = function (pos) {
 exports.findSymbolBefore = function (p, char) {
     var text = this.getText();
     for (var i = (p-1); i>=0; i--) {
-        if (text.charAt(i) == char) {
+        if (text.charAt(i) === char) {
             return i+1;
         }
     }

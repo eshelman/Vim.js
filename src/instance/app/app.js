@@ -41,6 +41,22 @@ exports._bind = function() {
     bind.listen(this);
 }
 
+exports.destroy = function() {
+    bind.destroy();
+    if (this.controller && this.controller.destroy) {
+        this.controller.destroy();
+    }
+    this._events = {};
+    this.boxes = undefined;
+    this.currentEle = undefined;
+    this.router = undefined;
+    this.vim = undefined;
+    this.textUtil = undefined;
+    this.controller = undefined;
+    this.clipboard = undefined;
+    this.doList = [];
+}
+
 exports._on = function (event, fn) {
     if (!this._events) {
         this._events = {}
@@ -82,7 +98,7 @@ exports.repeatAction = function(action, num) {
             if (!i) {
                 this.clipboard = '';
             }
-            if (i == num-1) {
+            if (i === num-1) {
                 //remove line break char
                 res = res.replace(_ENTER_, '');
             }
@@ -114,7 +130,7 @@ exports.getEleKey = function() {
 }
 
 exports.numberManager = function(code) {
-    if (code == 68 || code == 89) {
+    if (code === 68 || code === 89) {
         //防止ndd和nyy时候数值计算错误,如当code为68时，
         //如果不拦截，则会在后面执行initNumber()，导致dd时无法获取数值
         return undefined;
@@ -147,7 +163,7 @@ exports.isUnionCode = function (code, maxTime) {
     this.prevCode = code;
     this.prevCodeTime = ct;
     if (pc && (maxTime < 0 || ct - pt <= maxTime)) {
-        if (pc == code) {
+        if (pc === code) {
             this.prevCode = undefined;
         }
         return pc + '_' + code;
@@ -158,8 +174,6 @@ exports.isUnionCode = function (code, maxTime) {
 exports.parseRoute = function(code, ev, num) {
     var c = this.controller;
     var param = num;
-    var prefix = 'c.';
-    var suffix = '(param)';
     var vimKeys = this.router.getKeys();
     if (code === 27) {
         c.switchModeToGeneral();
@@ -172,19 +186,24 @@ exports.parseRoute = function(code, ev, num) {
         }
         var keyName = vimKeys[code]['name'];
         if (ev.shiftKey) {
-            if (keyName == keyName.toUpperCase()) {
+            if (keyName === keyName.toUpperCase()) {
                 keyName = 'shift_' + keyName;
             } else {
                 keyName = keyName.toUpperCase();
             }
         }
-        this._log(vimKeys[code][keyName] + suffix);
-        if (vimKeys[code][keyName]) {
+        var methodName = vimKeys[code][keyName];
+        this._log(methodName + '(param)');
+        if (methodName) {
+            if (typeof c[methodName] !== 'function') {
+                this._log('parseRoute: unknown method "' + methodName + '"', true);
+                return;
+            }
             //record
             if (vimKeys[code]['record']) {
                 this.recordText();
             }
-            eval(prefix + vimKeys[code][keyName] + suffix);
+            c[methodName](param);
             //init number
             this.initNumber();
         }

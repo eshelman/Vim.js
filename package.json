@@ -2,10 +2,11 @@
   "name": "vim.js",
   "version": "0.2.2",
   "description": "simple vim for web textarea and input",
+  "main": "build/vim.js",
   "scripts": {
-    "dev": "webpack --watch",
-    "build": "webpack",
-    "build_min": "webpack --config webpack.min.config.js"
+    "dev": "vite build --watch",
+    "build": "vite build",
+    "build_min": "vite build --mode minified"
   },
   "keywords": [
     "vim",
@@ -19,6 +20,6 @@
   },
   "bugs": "https://github.com/toplan/Vim.js/issues",
   "devDependencies": {
-    "webpack": "^1.12.15"
+    "vite": "^6.1.0"
   }
 }
