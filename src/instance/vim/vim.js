@@ -18,6 +18,7 @@ exports._init = function (tu) {
 
 exports.resetVim = function() {
     this.replaceRequest = false;
+    this.findCharRequest = null;
     this.visualPosition = undefined;
     this.visualCursor = undefined;
 }
@@ -472,4 +473,342 @@ exports.deletePrevWord = function () {
 exports.copyPrevWord = function (p) {
     var poses = textUtil.getPrevWordPos(p);
     return poses[0];
+};
+
+exports.changeLine = function () {
+    var sp = textUtil.getCurrLineStartPos();
+    var ep = textUtil.getCurrLineEndPos();
+    if (ep > sp) {
+        var t = textUtil.delete(sp, ep);
+        textUtil.select(sp, sp);
+        return t;
+    }
+    textUtil.select(sp, sp);
+    return '';
+};
+
+exports.changeToEnd = function () {
+    var p = textUtil.getCursorPosition();
+    var ep = textUtil.getCurrLineEndPos();
+    if (ep > p) {
+        var t = textUtil.delete(p, ep);
+        textUtil.select(p, p);
+        return t;
+    }
+    textUtil.select(p, p);
+    return '';
+};
+
+exports.changeWord = function () {
+    var t;
+    var poses = textUtil.getCurrWordPos();
+    if (poses[1]) {
+        t = textUtil.delete(poses[0], poses[1]);
+        textUtil.select(poses[0], poses[0]);
+    }
+    return t;
+};
+
+exports.changePrevWord = function () {
+    var t;
+    var p = textUtil.getCursorPosition();
+    var poses = textUtil.getPrevWordPos(p);
+    if (poses[0] !== undefined && poses[0] < p) {
+        t = textUtil.delete(poses[0], p);
+        textUtil.select(poses[0], poses[0]);
+    }
+    return t;
+};
+
+exports.substituteChar = function () {
+    var p = textUtil.getCursorPosition();
+    var t = this.deleteSelected();
+    textUtil.select(p, p);
+    this.pasteInNewLineRequest = false;
+    return t;
+};
+
+// ==============================
+// Find character motions (f/F/t/T)
+// ==============================
+
+// Helper: find char position forward on current line without moving cursor
+exports._findForwardPos = function(char, count, p) {
+    var ep = textUtil.getCurrLineEndPos(p);
+    var text = textUtil.getText();
+    var found = 0;
+    for (var i = p + 1; i < ep; i++) {
+        if (text.charAt(i) === char) {
+            found++;
+            if (found === count) {
+                return i;
+            }
+        }
+    }
+    return undefined;
+};
+
+// Helper: find char position backward on current line without moving cursor
+exports._findBackwardPos = function(char, count, p) {
+    var sp = textUtil.getCurrLineStartPos(p);
+    var text = textUtil.getText();
+    var found = 0;
+    for (var i = p - 1; i >= sp; i--) {
+        if (text.charAt(i) === char) {
+            found++;
+            if (found === count) {
+                return i;
+            }
+        }
+    }
+    return undefined;
+};
+
+// f{char} — move cursor to next occurrence of char on current line
+exports.findCharForward = function(char, count) {
+    var p = textUtil.getCursorPosition();
+    if (this.isMode(VISUAL) && this.visualCursor !== undefined) {
+        p = this.visualCursor;
+    }
+    var pos = this._findForwardPos(char, count, p);
+    if (pos !== undefined) {
+        if (this.isMode(GENERAL)) {
+            textUtil.select(pos, pos + 1);
+        } else if (this.isMode(VISUAL)) {
+            textUtil.select(this.visualPosition, pos + 1);
+            this.visualCursor = pos + 1;
+        }
+        return pos;
+    }
+    return undefined;
+};
+
+// F{char} — move cursor to previous occurrence of char on current line
+exports.findCharBackward = function(char, count) {
+    var p = textUtil.getCursorPosition();
+    if (this.isMode(VISUAL) && this.visualCursor !== undefined) {
+        p = this.visualCursor;
+    }
+    var pos = this._findBackwardPos(char, count, p);
+    if (pos !== undefined) {
+        if (this.isMode(GENERAL)) {
+            textUtil.select(pos, pos + 1);
+        } else if (this.isMode(VISUAL)) {
+            textUtil.select(this.visualPosition, pos);
+            this.visualCursor = pos;
+        }
+        return pos;
+    }
+    return undefined;
+};
+
+// t{char} — move cursor to just before next occurrence of char on current line
+exports.findCharTillForward = function(char, count) {
+    var p = textUtil.getCursorPosition();
+    if (this.isMode(VISUAL) && this.visualCursor !== undefined) {
+        p = this.visualCursor;
+    }
+    var pos = this._findForwardPos(char, count, p);
+    if (pos !== undefined) {
+        var tp = pos - 1;
+        if (tp >= p) {
+            if (this.isMode(GENERAL)) {
+                textUtil.select(tp, tp + 1);
+            } else if (this.isMode(VISUAL)) {
+                textUtil.select(this.visualPosition, tp + 1);
+                this.visualCursor = tp + 1;
+            }
+            return tp;
+        }
+    }
+    return undefined;
+};
+
+// T{char} — move cursor to just after previous occurrence of char on current line
+exports.findCharTillBackward = function(char, count) {
+    var p = textUtil.getCursorPosition();
+    if (this.isMode(VISUAL) && this.visualCursor !== undefined) {
+        p = this.visualCursor;
+    }
+    var pos = this._findBackwardPos(char, count, p);
+    if (pos !== undefined) {
+        var tp = pos + 1;
+        if (tp <= p) {
+            if (this.isMode(GENERAL)) {
+                textUtil.select(tp, tp + 1);
+            } else if (this.isMode(VISUAL)) {
+                textUtil.select(this.visualPosition, tp);
+                this.visualCursor = tp;
+            }
+            return tp;
+        }
+    }
+    return undefined;
+};
+
+// ==============================
+// Delete/yank with find char motions
+// ==============================
+
+// df{char} — delete from cursor through next occurrence of char
+exports.deleteToFindForward = function(char, count) {
+    var sp = textUtil.getCursorPosition();
+    var pos = this._findForwardPos(char, count, sp);
+    if (pos !== undefined) {
+        var t = textUtil.delete(sp, pos + 1);
+        textUtil.select(sp, sp + 1);
+        return t;
+    }
+    return undefined;
+};
+
+// dF{char} — delete from cursor back through previous occurrence of char
+exports.deleteToFindBackward = function(char, count) {
+    var sp = textUtil.getCursorPosition();
+    var pos = this._findBackwardPos(char, count, sp);
+    if (pos !== undefined) {
+        var t = textUtil.delete(pos, sp);
+        textUtil.select(pos, pos + 1);
+        return t;
+    }
+    return undefined;
+};
+
+// dt{char} — delete from cursor to just before next occurrence of char
+exports.deleteToTillForward = function(char, count) {
+    var sp = textUtil.getCursorPosition();
+    var pos = this._findForwardPos(char, count, sp);
+    if (pos !== undefined) {
+        var t = textUtil.delete(sp, pos);
+        textUtil.select(sp, sp + 1);
+        return t;
+    }
+    return undefined;
+};
+
+// dT{char} — delete from cursor back to just after previous occurrence of char
+exports.deleteToTillBackward = function(char, count) {
+    var sp = textUtil.getCursorPosition();
+    var pos = this._findBackwardPos(char, count, sp);
+    if (pos !== undefined) {
+        var t = textUtil.delete(pos + 1, sp);
+        textUtil.select(pos + 1, pos + 2);
+        return t;
+    }
+    return undefined;
+};
+
+// yf{char} — yank from cursor through next occurrence of char
+exports.yankToFindForward = function(char, count) {
+    var sp = textUtil.getCursorPosition();
+    var pos = this._findForwardPos(char, count, sp);
+    if (pos !== undefined) {
+        this.pasteInNewLineRequest = false;
+        return textUtil.getText(sp, pos + 1);
+    }
+    return undefined;
+};
+
+// yF{char} — yank from cursor back through previous occurrence of char
+exports.yankToFindBackward = function(char, count) {
+    var sp = textUtil.getCursorPosition();
+    var pos = this._findBackwardPos(char, count, sp);
+    if (pos !== undefined) {
+        this.pasteInNewLineRequest = false;
+        return textUtil.getText(pos, sp);
+    }
+    return undefined;
+};
+
+// yt{char} — yank from cursor to just before next occurrence of char
+exports.yankToTillForward = function(char, count) {
+    var sp = textUtil.getCursorPosition();
+    var pos = this._findForwardPos(char, count, sp);
+    if (pos !== undefined) {
+        this.pasteInNewLineRequest = false;
+        return textUtil.getText(sp, pos);
+    }
+    return undefined;
+};
+
+// yT{char} — yank from cursor back to just after previous occurrence of char
+exports.yankToTillBackward = function(char, count) {
+    var sp = textUtil.getCursorPosition();
+    var pos = this._findBackwardPos(char, count, sp);
+    if (pos !== undefined) {
+        this.pasteInNewLineRequest = false;
+        return textUtil.getText(pos + 1, sp);
+    }
+    return undefined;
+};
+
+// ==============================
+// Word-end motions (e/E)
+// ==============================
+
+// e — move to end of current/next word
+exports.moveToWordEnd = function() {
+    var p = textUtil.getCursorPosition();
+    if (this.isMode(VISUAL) && this.visualCursor !== undefined) {
+        p = this.visualCursor;
+    }
+    var text = textUtil.getText();
+    var len = text.length;
+    var i = p + 1;
+
+    // Skip whitespace
+    while (i < len && /\s/.test(text.charAt(i))) {
+        i++;
+    }
+
+    if (i >= len) return;
+
+    // Determine character class and advance to end of class
+    var ch = text.charAt(i);
+    if (/[\w\u4e00-\u9fa5]/.test(ch)) {
+        while (i + 1 < len && /[\w\u4e00-\u9fa5]/.test(text.charAt(i + 1))) {
+            i++;
+        }
+    } else if (/\S/.test(ch)) {
+        while (i + 1 < len && /\W/.test(text.charAt(i + 1)) && /\S/.test(text.charAt(i + 1))) {
+            i++;
+        }
+    }
+
+    if (this.isMode(GENERAL)) {
+        textUtil.select(i, i + 1);
+    } else if (this.isMode(VISUAL)) {
+        textUtil.select(this.visualPosition, i + 1);
+        this.visualCursor = i + 1;
+    }
+};
+
+// E — move to end of current/next WORD (whitespace-delimited)
+exports.moveToWordEndBig = function() {
+    var p = textUtil.getCursorPosition();
+    if (this.isMode(VISUAL) && this.visualCursor !== undefined) {
+        p = this.visualCursor;
+    }
+    var text = textUtil.getText();
+    var len = text.length;
+    var i = p + 1;
+
+    // Skip whitespace
+    while (i < len && /\s/.test(text.charAt(i))) {
+        i++;
+    }
+
+    if (i >= len) return;
+
+    // Advance to end of non-whitespace sequence
+    while (i + 1 < len && /\S/.test(text.charAt(i + 1))) {
+        i++;
+    }
+
+    if (this.isMode(GENERAL)) {
+        textUtil.select(i, i + 1);
+    } else if (this.isMode(VISUAL)) {
+        textUtil.select(this.visualPosition, i + 1);
+        this.visualCursor = i + 1;
+    }
 };

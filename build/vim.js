@@ -109,6 +109,7 @@
     };
     vim.resetVim = function() {
       this.replaceRequest = false;
+      this.findCharRequest = null;
       this.visualPosition = void 0;
       this.visualCursor = void 0;
     };
@@ -526,6 +527,283 @@
       var poses = textUtil.getPrevWordPos(p);
       return poses[0];
     };
+    vim.changeLine = function() {
+      var sp = textUtil.getCurrLineStartPos();
+      var ep = textUtil.getCurrLineEndPos();
+      if (ep > sp) {
+        var t = textUtil.delete(sp, ep);
+        textUtil.select(sp, sp);
+        return t;
+      }
+      textUtil.select(sp, sp);
+      return "";
+    };
+    vim.changeToEnd = function() {
+      var p = textUtil.getCursorPosition();
+      var ep = textUtil.getCurrLineEndPos();
+      if (ep > p) {
+        var t = textUtil.delete(p, ep);
+        textUtil.select(p, p);
+        return t;
+      }
+      textUtil.select(p, p);
+      return "";
+    };
+    vim.changeWord = function() {
+      var t;
+      var poses = textUtil.getCurrWordPos();
+      if (poses[1]) {
+        t = textUtil.delete(poses[0], poses[1]);
+        textUtil.select(poses[0], poses[0]);
+      }
+      return t;
+    };
+    vim.changePrevWord = function() {
+      var t;
+      var p = textUtil.getCursorPosition();
+      var poses = textUtil.getPrevWordPos(p);
+      if (poses[0] !== void 0 && poses[0] < p) {
+        t = textUtil.delete(poses[0], p);
+        textUtil.select(poses[0], poses[0]);
+      }
+      return t;
+    };
+    vim.substituteChar = function() {
+      var p = textUtil.getCursorPosition();
+      var t = this.deleteSelected();
+      textUtil.select(p, p);
+      this.pasteInNewLineRequest = false;
+      return t;
+    };
+    vim._findForwardPos = function(char, count, p) {
+      var ep = textUtil.getCurrLineEndPos(p);
+      var text2 = textUtil.getText();
+      var found = 0;
+      for (var i = p + 1; i < ep; i++) {
+        if (text2.charAt(i) === char) {
+          found++;
+          if (found === count) {
+            return i;
+          }
+        }
+      }
+      return void 0;
+    };
+    vim._findBackwardPos = function(char, count, p) {
+      var sp = textUtil.getCurrLineStartPos(p);
+      var text2 = textUtil.getText();
+      var found = 0;
+      for (var i = p - 1; i >= sp; i--) {
+        if (text2.charAt(i) === char) {
+          found++;
+          if (found === count) {
+            return i;
+          }
+        }
+      }
+      return void 0;
+    };
+    vim.findCharForward = function(char, count) {
+      var p = textUtil.getCursorPosition();
+      if (this.isMode(VISUAL) && this.visualCursor !== void 0) {
+        p = this.visualCursor;
+      }
+      var pos = this._findForwardPos(char, count, p);
+      if (pos !== void 0) {
+        if (this.isMode(GENERAL)) {
+          textUtil.select(pos, pos + 1);
+        } else if (this.isMode(VISUAL)) {
+          textUtil.select(this.visualPosition, pos + 1);
+          this.visualCursor = pos + 1;
+        }
+        return pos;
+      }
+      return void 0;
+    };
+    vim.findCharBackward = function(char, count) {
+      var p = textUtil.getCursorPosition();
+      if (this.isMode(VISUAL) && this.visualCursor !== void 0) {
+        p = this.visualCursor;
+      }
+      var pos = this._findBackwardPos(char, count, p);
+      if (pos !== void 0) {
+        if (this.isMode(GENERAL)) {
+          textUtil.select(pos, pos + 1);
+        } else if (this.isMode(VISUAL)) {
+          textUtil.select(this.visualPosition, pos);
+          this.visualCursor = pos;
+        }
+        return pos;
+      }
+      return void 0;
+    };
+    vim.findCharTillForward = function(char, count) {
+      var p = textUtil.getCursorPosition();
+      if (this.isMode(VISUAL) && this.visualCursor !== void 0) {
+        p = this.visualCursor;
+      }
+      var pos = this._findForwardPos(char, count, p);
+      if (pos !== void 0) {
+        var tp = pos - 1;
+        if (tp >= p) {
+          if (this.isMode(GENERAL)) {
+            textUtil.select(tp, tp + 1);
+          } else if (this.isMode(VISUAL)) {
+            textUtil.select(this.visualPosition, tp + 1);
+            this.visualCursor = tp + 1;
+          }
+          return tp;
+        }
+      }
+      return void 0;
+    };
+    vim.findCharTillBackward = function(char, count) {
+      var p = textUtil.getCursorPosition();
+      if (this.isMode(VISUAL) && this.visualCursor !== void 0) {
+        p = this.visualCursor;
+      }
+      var pos = this._findBackwardPos(char, count, p);
+      if (pos !== void 0) {
+        var tp = pos + 1;
+        if (tp <= p) {
+          if (this.isMode(GENERAL)) {
+            textUtil.select(tp, tp + 1);
+          } else if (this.isMode(VISUAL)) {
+            textUtil.select(this.visualPosition, tp);
+            this.visualCursor = tp;
+          }
+          return tp;
+        }
+      }
+      return void 0;
+    };
+    vim.deleteToFindForward = function(char, count) {
+      var sp = textUtil.getCursorPosition();
+      var pos = this._findForwardPos(char, count, sp);
+      if (pos !== void 0) {
+        var t = textUtil.delete(sp, pos + 1);
+        textUtil.select(sp, sp + 1);
+        return t;
+      }
+      return void 0;
+    };
+    vim.deleteToFindBackward = function(char, count) {
+      var sp = textUtil.getCursorPosition();
+      var pos = this._findBackwardPos(char, count, sp);
+      if (pos !== void 0) {
+        var t = textUtil.delete(pos, sp);
+        textUtil.select(pos, pos + 1);
+        return t;
+      }
+      return void 0;
+    };
+    vim.deleteToTillForward = function(char, count) {
+      var sp = textUtil.getCursorPosition();
+      var pos = this._findForwardPos(char, count, sp);
+      if (pos !== void 0) {
+        var t = textUtil.delete(sp, pos);
+        textUtil.select(sp, sp + 1);
+        return t;
+      }
+      return void 0;
+    };
+    vim.deleteToTillBackward = function(char, count) {
+      var sp = textUtil.getCursorPosition();
+      var pos = this._findBackwardPos(char, count, sp);
+      if (pos !== void 0) {
+        var t = textUtil.delete(pos + 1, sp);
+        textUtil.select(pos + 1, pos + 2);
+        return t;
+      }
+      return void 0;
+    };
+    vim.yankToFindForward = function(char, count) {
+      var sp = textUtil.getCursorPosition();
+      var pos = this._findForwardPos(char, count, sp);
+      if (pos !== void 0) {
+        this.pasteInNewLineRequest = false;
+        return textUtil.getText(sp, pos + 1);
+      }
+      return void 0;
+    };
+    vim.yankToFindBackward = function(char, count) {
+      var sp = textUtil.getCursorPosition();
+      var pos = this._findBackwardPos(char, count, sp);
+      if (pos !== void 0) {
+        this.pasteInNewLineRequest = false;
+        return textUtil.getText(pos, sp);
+      }
+      return void 0;
+    };
+    vim.yankToTillForward = function(char, count) {
+      var sp = textUtil.getCursorPosition();
+      var pos = this._findForwardPos(char, count, sp);
+      if (pos !== void 0) {
+        this.pasteInNewLineRequest = false;
+        return textUtil.getText(sp, pos);
+      }
+      return void 0;
+    };
+    vim.yankToTillBackward = function(char, count) {
+      var sp = textUtil.getCursorPosition();
+      var pos = this._findBackwardPos(char, count, sp);
+      if (pos !== void 0) {
+        this.pasteInNewLineRequest = false;
+        return textUtil.getText(pos + 1, sp);
+      }
+      return void 0;
+    };
+    vim.moveToWordEnd = function() {
+      var p = textUtil.getCursorPosition();
+      if (this.isMode(VISUAL) && this.visualCursor !== void 0) {
+        p = this.visualCursor;
+      }
+      var text2 = textUtil.getText();
+      var len = text2.length;
+      var i = p + 1;
+      while (i < len && /\s/.test(text2.charAt(i))) {
+        i++;
+      }
+      if (i >= len) return;
+      var ch = text2.charAt(i);
+      if (/[\w\u4e00-\u9fa5]/.test(ch)) {
+        while (i + 1 < len && /[\w\u4e00-\u9fa5]/.test(text2.charAt(i + 1))) {
+          i++;
+        }
+      } else if (/\S/.test(ch)) {
+        while (i + 1 < len && /\W/.test(text2.charAt(i + 1)) && /\S/.test(text2.charAt(i + 1))) {
+          i++;
+        }
+      }
+      if (this.isMode(GENERAL)) {
+        textUtil.select(i, i + 1);
+      } else if (this.isMode(VISUAL)) {
+        textUtil.select(this.visualPosition, i + 1);
+        this.visualCursor = i + 1;
+      }
+    };
+    vim.moveToWordEndBig = function() {
+      var p = textUtil.getCursorPosition();
+      if (this.isMode(VISUAL) && this.visualCursor !== void 0) {
+        p = this.visualCursor;
+      }
+      var text2 = textUtil.getText();
+      var len = text2.length;
+      var i = p + 1;
+      while (i < len && /\s/.test(text2.charAt(i))) {
+        i++;
+      }
+      if (i >= len) return;
+      while (i + 1 < len && /\S/.test(text2.charAt(i + 1))) {
+        i++;
+      }
+      if (this.isMode(GENERAL)) {
+        textUtil.select(i, i + 1);
+      } else if (this.isMode(VISUAL)) {
+        textUtil.select(this.visualPosition, i + 1);
+        this.visualCursor = i + 1;
+      }
+    };
     return vim;
   }
   var text = {};
@@ -888,264 +1166,477 @@
   function requireController() {
     if (hasRequiredController) return controller;
     hasRequiredController = 1;
-    const GENERAL = "general_mode";
-    const EDIT = "edit_mode";
-    const VISUAL = "visual_mode";
-    const _ENTER_ = "\n";
-    var App;
-    var vim2;
-    var textUtil;
-    var _timeoutIds = [];
-    controller._init = function(app2) {
-      App = app2;
-      vim2 = app2.vim;
-      textUtil = app2.textUtil;
-    };
-    controller.setVim = function(v) {
-      vim2 = v;
-    };
-    controller.setTextUtil = function(tu) {
-      textUtil = tu;
-    };
-    controller.selectPrevCharacter = function(num) {
-      App.repeatAction(function() {
-        vim2.selectPrevCharacter();
-      }, num);
-    };
-    controller.selectNextCharacter = function(num) {
-      App.repeatAction(function() {
-        vim2.selectNextCharacter();
-      }, num);
-    };
-    controller.switchModeToGeneral = function() {
-      var cMode = vim2.currentMode;
-      if (vim2.isMode(GENERAL)) {
-        return;
-      }
-      vim2.switchModeTo(GENERAL);
-      var p = textUtil.getCursorPosition();
-      var sp = textUtil.getCurrLineStartPos();
-      if (p === sp) {
-        var c = textUtil.getCurrLineCount();
-        if (!c) {
-          textUtil.appendText(" ", p);
-        }
-        vim2.selectNextCharacter();
-        vim2.selectPrevCharacter();
-        if (textUtil.getCurrLineCount() === 1) {
-          textUtil.select(p, p + 1);
-        }
-      } else {
-        if (cMode === VISUAL) {
+    (function(exports$1) {
+      const GENERAL = "general_mode";
+      const EDIT = "edit_mode";
+      const VISUAL = "visual_mode";
+      const _ENTER_ = "\n";
+      var App;
+      var vim2;
+      var textUtil;
+      var _timeoutIds = [];
+      exports$1._init = function(app2) {
+        App = app2;
+        vim2 = app2.vim;
+        textUtil = app2.textUtil;
+      };
+      exports$1.setVim = function(v) {
+        vim2 = v;
+      };
+      exports$1.setTextUtil = function(tu) {
+        textUtil = tu;
+      };
+      exports$1.selectPrevCharacter = function(num) {
+        App.repeatAction(function() {
+          vim2.selectPrevCharacter();
+        }, num);
+      };
+      exports$1.selectNextCharacter = function(num) {
+        App.repeatAction(function() {
           vim2.selectNextCharacter();
-        }
-        vim2.selectPrevCharacter();
-      }
-    };
-    controller.switchModeToVisual = function() {
-      if (vim2.isMode(VISUAL)) {
-        var s = vim2.visualCursor;
-        if (s === void 0) {
+        }, num);
+      };
+      exports$1.switchModeToGeneral = function() {
+        App.endEditCapture();
+        var cMode = vim2.currentMode;
+        if (vim2.isMode(GENERAL)) {
           return;
         }
-        var p = vim2.visualPosition;
-        if (p < s) {
-          textUtil.select(s - 1, s);
-        } else {
-          textUtil.select(s, s + 1);
-        }
-        if (textUtil.getPrevSymbol(s) === _ENTER_) {
-          textUtil.select(s, s + 1);
-        }
         vim2.switchModeTo(GENERAL);
-        return;
-      }
-      vim2.switchModeTo(VISUAL);
-      vim2.visualPosition = textUtil.getCursorPosition();
-      vim2.visualCursor = void 0;
-    };
-    controller.append = function() {
-      vim2.append();
-      _timeoutIds.push(setTimeout(function() {
-        vim2.switchModeTo(EDIT);
-      }, 100));
-    };
-    controller.appendLineTail = function() {
-      vim2.moveToCurrentLineTail();
-      this.append();
-    };
-    controller.insert = function() {
-      vim2.insert();
-      _timeoutIds.push(setTimeout(function() {
-        vim2.switchModeTo(EDIT);
-      }, 100));
-    };
-    controller.insertLineHead = function() {
-      vim2.moveToCurrentLineHead();
-      this.insert();
-    };
-    controller.selectNextLine = function(num) {
-      App.repeatAction(function() {
-        vim2.selectNextLine();
-      }, num);
-    };
-    controller.selectPrevLine = function(num) {
-      App.repeatAction(function() {
-        vim2.selectPrevLine();
-      }, num);
-    };
-    controller.copyChar = function() {
-      vim2.pasteInNewLineRequest = false;
-      App.clipboard = textUtil.getSelectedText();
-      if (vim2.isMode(VISUAL)) {
+        var p = textUtil.getCursorPosition();
+        var sp = textUtil.getCurrLineStartPos();
+        if (p === sp) {
+          var c = textUtil.getCurrLineCount();
+          if (!c) {
+            textUtil.appendText(" ", p);
+          }
+          vim2.selectNextCharacter();
+          vim2.selectPrevCharacter();
+          if (textUtil.getCurrLineCount() === 1) {
+            textUtil.select(p, p + 1);
+          }
+        } else {
+          if (cMode === VISUAL) {
+            vim2.selectNextCharacter();
+          }
+          vim2.selectPrevCharacter();
+        }
+      };
+      exports$1.switchModeToVisual = function() {
+        if (vim2.isMode(VISUAL)) {
+          var s = vim2.visualCursor;
+          if (s === void 0) {
+            return;
+          }
+          var p = vim2.visualPosition;
+          if (p < s) {
+            textUtil.select(s - 1, s);
+          } else {
+            textUtil.select(s, s + 1);
+          }
+          if (textUtil.getPrevSymbol(s) === _ENTER_) {
+            textUtil.select(s, s + 1);
+          }
+          vim2.switchModeTo(GENERAL);
+          return;
+        }
+        vim2.switchModeTo(VISUAL);
+        vim2.visualPosition = textUtil.getCursorPosition();
+        vim2.visualCursor = void 0;
+      };
+      exports$1.append = function() {
+        vim2.append();
+        App.startEditCapture();
+        _timeoutIds.push(setTimeout(function() {
+          vim2.switchModeTo(EDIT);
+        }, 100));
+      };
+      exports$1.appendLineTail = function() {
+        vim2.moveToCurrentLineTail();
+        this.append();
+      };
+      exports$1.insert = function() {
+        vim2.insert();
+        App.startEditCapture();
+        _timeoutIds.push(setTimeout(function() {
+          vim2.switchModeTo(EDIT);
+        }, 100));
+      };
+      exports$1.insertLineHead = function() {
+        vim2.moveToCurrentLineHead();
+        this.insert();
+      };
+      exports$1.selectNextLine = function(num) {
+        App.repeatAction(function() {
+          vim2.selectNextLine();
+        }, num);
+      };
+      exports$1.selectPrevLine = function(num) {
+        App.repeatAction(function() {
+          vim2.selectPrevLine();
+        }, num);
+      };
+      exports$1.copyChar = function() {
+        vim2.pasteInNewLineRequest = false;
+        App.clipboard = textUtil.getSelectedText();
+        if (vim2.isMode(VISUAL)) {
+          this.switchModeToGeneral();
+        }
+      };
+      exports$1.copyCurrentLine = function(num) {
+        var _data = { p: void 0, t: "" };
+        App.repeatAction(function() {
+          _data.t = vim2.copyCurrentLine(_data.p);
+          _data.p = textUtil.getNextLineStart(_data.p);
+          return _data.t;
+        }, num);
+      };
+      exports$1.pasteAfter = function() {
+        if (App.clipboard !== void 0) {
+          if (vim2.pasteInNewLineRequest) {
+            var ep = textUtil.getCurrLineEndPos();
+            textUtil.appendText(_ENTER_ + App.clipboard, ep, true, true);
+          } else {
+            textUtil.appendText(App.clipboard, void 0, true, false);
+          }
+        }
+      };
+      exports$1.pasteBefore = function() {
+        if (App.clipboard !== void 0) {
+          if (vim2.pasteInNewLineRequest) {
+            var sp = textUtil.getCurrLineStartPos();
+            textUtil.insertText(App.clipboard + _ENTER_, sp, true, true);
+          } else {
+            textUtil.insertText(App.clipboard, void 0, true, false);
+          }
+        }
+      };
+      exports$1.moveToCurrentLineHead = function() {
+        vim2.moveToCurrentLineHead();
+      };
+      exports$1.moveToCurrentLineTail = function() {
+        vim2.moveToCurrentLineTail();
+      };
+      exports$1.replaceChar = function() {
+        vim2.replaceRequest = true;
+      };
+      exports$1.appendNewLine = function() {
+        vim2.appendNewLine();
+        App.startEditCapture();
+        _timeoutIds.push(setTimeout(function() {
+          vim2.switchModeTo(EDIT);
+        }, 100));
+      };
+      exports$1.insertNewLine = function() {
+        vim2.insertNewLine();
+        App.startEditCapture();
+        _timeoutIds.push(setTimeout(function() {
+          vim2.switchModeTo(EDIT);
+        }, 100));
+      };
+      exports$1.delCharAfter = function(num) {
+        App.repeatAction(function() {
+          return vim2.deleteSelected();
+        }, num);
         this.switchModeToGeneral();
-      }
-    };
-    controller.copyCurrentLine = function(num) {
-      var _data = { p: void 0, t: "" };
-      App.repeatAction(function() {
-        _data.t = vim2.copyCurrentLine(_data.p);
-        _data.p = textUtil.getNextLineStart(_data.p);
-        return _data.t;
-      }, num);
-    };
-    controller.pasteAfter = function() {
-      if (App.clipboard !== void 0) {
-        if (vim2.pasteInNewLineRequest) {
-          var ep = textUtil.getCurrLineEndPos();
-          textUtil.appendText(_ENTER_ + App.clipboard, ep, true, true);
-        } else {
-          textUtil.appendText(App.clipboard, void 0, true, false);
+      };
+      exports$1.backToHistory = function() {
+        var key = App.getEleKey();
+        var list = App.doList[key];
+        vim2.backToHistory(list);
+      };
+      exports$1.delCurrLine = function(num) {
+        App.repeatAction(function() {
+          return vim2.delCurrLine();
+        }, num);
+      };
+      exports$1.moveToFirstLine = function() {
+        vim2.moveToFirstLine();
+      };
+      exports$1.moveToLastLine = function() {
+        vim2.moveToLastLine();
+      };
+      exports$1.moveToNextWord = function(num) {
+        App.repeatAction(function() {
+          vim2.moveToNextWord();
+        }, num);
+      };
+      exports$1.copyWord = function(num) {
+        vim2.pasteInNewLineRequest = false;
+        var sp = textUtil.getCursorPosition();
+        var ep;
+        App.repeatAction(function() {
+          ep = vim2.copyWord(ep);
+        }, num);
+        App.clipboard = textUtil.getText(sp, ep);
+      };
+      exports$1.deleteWord = function(num) {
+        vim2.pasteInNewLineRequest = false;
+        App.repeatAction(function() {
+          return vim2.deleteWord();
+        }, num);
+      };
+      exports$1.moveToPrevWord = function(num) {
+        App.repeatAction(function() {
+          vim2.moveToPrevWord();
+        }, num);
+      };
+      exports$1.moveToPrevBigWord = function(num) {
+        App.repeatAction(function() {
+          vim2.moveToPrevBigWord();
+        }, num);
+      };
+      exports$1.moveToPrevSentence = function(num) {
+        App.repeatAction(function() {
+          vim2.moveToPrevSentence();
+        }, num);
+      };
+      exports$1.moveToNextSentence = function(num) {
+        App.repeatAction(function() {
+          vim2.moveToNextSentence();
+        }, num);
+      };
+      exports$1.moveToPrevParagraph = function(num) {
+        App.repeatAction(function() {
+          vim2.moveToPrevParagraph();
+        }, num);
+      };
+      exports$1.moveToNextParagraph = function(num) {
+        App.repeatAction(function() {
+          vim2.moveToNextParagraph();
+        }, num);
+      };
+      exports$1.deletePrevWord = function(num) {
+        vim2.pasteInNewLineRequest = false;
+        App.repeatAction(function() {
+          return vim2.deletePrevWord();
+        }, num);
+      };
+      exports$1.changeLine = function(num) {
+        App.repeatAction(function() {
+          return vim2.changeLine();
+        }, num);
+        App.startEditCapture();
+        _timeoutIds.push(setTimeout(function() {
+          vim2.switchModeTo(EDIT);
+        }, 100));
+      };
+      exports$1.changeWord = function(num) {
+        vim2.pasteInNewLineRequest = false;
+        App.repeatAction(function() {
+          return vim2.changeWord();
+        }, num);
+        App.startEditCapture();
+        _timeoutIds.push(setTimeout(function() {
+          vim2.switchModeTo(EDIT);
+        }, 100));
+      };
+      exports$1.changePrevWord = function(num) {
+        vim2.pasteInNewLineRequest = false;
+        App.repeatAction(function() {
+          return vim2.changePrevWord();
+        }, num);
+        App.startEditCapture();
+        _timeoutIds.push(setTimeout(function() {
+          vim2.switchModeTo(EDIT);
+        }, 100));
+      };
+      exports$1.changeToEnd = function() {
+        vim2.changeToEnd();
+        App.startEditCapture();
+        _timeoutIds.push(setTimeout(function() {
+          vim2.switchModeTo(EDIT);
+        }, 100));
+      };
+      exports$1.substitute = function(num) {
+        vim2.pasteInNewLineRequest = false;
+        App.repeatAction(function() {
+          return vim2.substituteChar();
+        }, num);
+        App.startEditCapture();
+        _timeoutIds.push(setTimeout(function() {
+          vim2.switchModeTo(EDIT);
+        }, 100));
+      };
+      exports$1.substituteLine = function(num) {
+        this.changeLine(num);
+      };
+      exports$1.changeSelection = function() {
+        if (!vim2.isMode(VISUAL)) {
+          return;
         }
-      }
-    };
-    controller.pasteBefore = function() {
-      if (App.clipboard !== void 0) {
-        if (vim2.pasteInNewLineRequest) {
-          var sp = textUtil.getCurrLineStartPos();
-          textUtil.insertText(App.clipboard + _ENTER_, sp, true, true);
-        } else {
-          textUtil.insertText(App.clipboard, void 0, true, false);
+        vim2.pasteInNewLineRequest = false;
+        App.clipboard = textUtil.getSelectedText();
+        var p = textUtil.getCursorPosition();
+        textUtil.delSelected();
+        textUtil.select(p, p);
+        App.startEditCapture();
+        _timeoutIds.push(setTimeout(function() {
+          vim2.switchModeTo(EDIT);
+        }, 100));
+      };
+      exports$1.copyPrevWord = function(num) {
+        vim2.pasteInNewLineRequest = false;
+        var ep = textUtil.getCursorPosition();
+        var sp;
+        App.repeatAction(function() {
+          sp = vim2.copyPrevWord(sp);
+        }, num);
+        App.clipboard = textUtil.getText(sp, ep);
+      };
+      exports$1.dotRepeat = function(num) {
+        var cmd = App._lastDotCommand;
+        if (!cmd) {
+          return;
         }
-      }
-    };
-    controller.moveToCurrentLineHead = function() {
-      vim2.moveToCurrentLineHead();
-    };
-    controller.moveToCurrentLineTail = function() {
-      vim2.moveToCurrentLineTail();
-    };
-    controller.replaceChar = function() {
-      vim2.replaceRequest = true;
-    };
-    controller.appendNewLine = function() {
-      vim2.appendNewLine();
-      _timeoutIds.push(setTimeout(function() {
-        vim2.switchModeTo(EDIT);
-      }, 100));
-    };
-    controller.insertNewLine = function() {
-      vim2.insertNewLine();
-      _timeoutIds.push(setTimeout(function() {
-        vim2.switchModeTo(EDIT);
-      }, 100));
-    };
-    controller.delCharAfter = function(num) {
-      App.repeatAction(function() {
-        return vim2.deleteSelected();
-      }, num);
-      this.switchModeToGeneral();
-    };
-    controller.backToHistory = function() {
-      var key = App.getEleKey();
-      var list = App.doList[key];
-      vim2.backToHistory(list);
-    };
-    controller.delCurrLine = function(num) {
-      App.repeatAction(function() {
-        return vim2.delCurrLine();
-      }, num);
-    };
-    controller.moveToFirstLine = function() {
-      vim2.moveToFirstLine();
-    };
-    controller.moveToLastLine = function() {
-      vim2.moveToLastLine();
-    };
-    controller.moveToNextWord = function(num) {
-      App.repeatAction(function() {
-        vim2.moveToNextWord();
-      }, num);
-    };
-    controller.copyWord = function(num) {
-      vim2.pasteInNewLineRequest = false;
-      var sp = textUtil.getCursorPosition();
-      var ep;
-      App.repeatAction(function() {
-        ep = vim2.copyWord(ep);
-      }, num);
-      App.clipboard = textUtil.getText(sp, ep);
-    };
-    controller.deleteWord = function(num) {
-      vim2.pasteInNewLineRequest = false;
-      App.repeatAction(function() {
-        return vim2.deleteWord();
-      }, num);
-    };
-    controller.moveToPrevWord = function(num) {
-      App.repeatAction(function() {
-        vim2.moveToPrevWord();
-      }, num);
-    };
-    controller.moveToPrevBigWord = function(num) {
-      App.repeatAction(function() {
-        vim2.moveToPrevBigWord();
-      }, num);
-    };
-    controller.moveToPrevSentence = function(num) {
-      App.repeatAction(function() {
-        vim2.moveToPrevSentence();
-      }, num);
-    };
-    controller.moveToNextSentence = function(num) {
-      App.repeatAction(function() {
-        vim2.moveToNextSentence();
-      }, num);
-    };
-    controller.moveToPrevParagraph = function(num) {
-      App.repeatAction(function() {
-        vim2.moveToPrevParagraph();
-      }, num);
-    };
-    controller.moveToNextParagraph = function(num) {
-      App.repeatAction(function() {
-        vim2.moveToNextParagraph();
-      }, num);
-    };
-    controller.deletePrevWord = function(num) {
-      vim2.pasteInNewLineRequest = false;
-      App.repeatAction(function() {
-        return vim2.deletePrevWord();
-      }, num);
-    };
-    controller.copyPrevWord = function(num) {
-      vim2.pasteInNewLineRequest = false;
-      var ep = textUtil.getCursorPosition();
-      var sp;
-      App.repeatAction(function() {
-        sp = vim2.copyPrevWord(sp);
-      }, num);
-      App.clipboard = textUtil.getText(sp, ep);
-    };
-    controller.destroy = function() {
-      for (var i = 0; i < _timeoutIds.length; i++) {
-        clearTimeout(_timeoutIds[i]);
-      }
-      _timeoutIds = [];
-      App = null;
-      vim2 = null;
-      textUtil = null;
-    };
+        var repeatNum = num || cmd.num;
+        if (cmd.isRecordable || cmd.insertedText !== void 0) {
+          App.recordText();
+        }
+        if (typeof exports$1[cmd.methodName] === "function") {
+          exports$1[cmd.methodName](repeatNum);
+        }
+        if (cmd.insertedText !== void 0 && cmd.insertedText !== "") {
+          _timeoutIds.push(setTimeout(function() {
+            if (vim2.isMode(EDIT)) {
+              var p = textUtil.getCursorPosition();
+              textUtil.insertText(cmd.insertedText, p);
+              textUtil.select(p + cmd.insertedText.length, p + cmd.insertedText.length);
+              vim2.switchModeTo(GENERAL);
+              var newP = textUtil.getCursorPosition();
+              if (newP > 0) {
+                textUtil.select(newP - 1, newP);
+              }
+            }
+          }, 200));
+        }
+      };
+      exports$1.findForward = function(num) {
+        vim2.findCharRequest = { type: "f", count: num || 1 };
+      };
+      exports$1.findBackward = function(num) {
+        vim2.findCharRequest = { type: "F", count: num || 1 };
+      };
+      exports$1.tillForward = function(num) {
+        vim2.findCharRequest = { type: "t", count: num || 1 };
+      };
+      exports$1.tillBackward = function(num) {
+        vim2.findCharRequest = { type: "T", count: num || 1 };
+      };
+      exports$1.executeFindChar = function(char, request) {
+        App._lastFindChar = { char, type: request.type, count: request.count };
+        if (request.type === "f") {
+          vim2.findCharForward(char, request.count);
+        } else if (request.type === "F") {
+          vim2.findCharBackward(char, request.count);
+        } else if (request.type === "t") {
+          vim2.findCharTillForward(char, request.count);
+        } else if (request.type === "T") {
+          vim2.findCharTillBackward(char, request.count);
+        }
+      };
+      exports$1.executeOperatorFindChar = function(char, request) {
+        App._lastFindChar = { char, type: request.type, count: request.count };
+        var operator = request.operator;
+        var type = request.type;
+        if (operator === "d") {
+          if (type === "f") {
+            vim2.deleteToFindForward(char, request.count);
+          } else if (type === "F") {
+            vim2.deleteToFindBackward(char, request.count);
+          } else if (type === "t") {
+            vim2.deleteToTillForward(char, request.count);
+          } else if (type === "T") {
+            vim2.deleteToTillBackward(char, request.count);
+          }
+        } else if (operator === "y") {
+          var text2;
+          if (type === "f") {
+            text2 = vim2.yankToFindForward(char, request.count);
+          } else if (type === "F") {
+            text2 = vim2.yankToFindBackward(char, request.count);
+          } else if (type === "t") {
+            text2 = vim2.yankToTillForward(char, request.count);
+          } else if (type === "T") {
+            text2 = vim2.yankToTillBackward(char, request.count);
+          }
+          if (text2 !== void 0) {
+            App.clipboard = text2;
+          }
+        }
+      };
+      exports$1.deleteFindForward = function(num) {
+        vim2.findCharRequest = { type: "f", count: num || 1, operator: "d" };
+      };
+      exports$1.deleteFindBackward = function(num) {
+        vim2.findCharRequest = { type: "F", count: num || 1, operator: "d" };
+      };
+      exports$1.deleteTillForward = function(num) {
+        vim2.findCharRequest = { type: "t", count: num || 1, operator: "d" };
+      };
+      exports$1.deleteTillBackward = function(num) {
+        vim2.findCharRequest = { type: "T", count: num || 1, operator: "d" };
+      };
+      exports$1.yankFindForward = function(num) {
+        vim2.findCharRequest = { type: "f", count: num || 1, operator: "y" };
+      };
+      exports$1.yankFindBackward = function(num) {
+        vim2.findCharRequest = { type: "F", count: num || 1, operator: "y" };
+      };
+      exports$1.yankTillForward = function(num) {
+        vim2.findCharRequest = { type: "t", count: num || 1, operator: "y" };
+      };
+      exports$1.yankTillBackward = function(num) {
+        vim2.findCharRequest = { type: "T", count: num || 1, operator: "y" };
+      };
+      exports$1.repeatFindForward = function(num) {
+        var last = App._lastFindChar;
+        if (!last) return;
+        var count = num || 1;
+        if (last.type === "f") {
+          vim2.findCharForward(last.char, count);
+        } else if (last.type === "F") {
+          vim2.findCharBackward(last.char, count);
+        } else if (last.type === "t") {
+          vim2.findCharTillForward(last.char, count);
+        } else if (last.type === "T") {
+          vim2.findCharTillBackward(last.char, count);
+        }
+      };
+      exports$1.repeatFindBackward = function(num) {
+        var last = App._lastFindChar;
+        if (!last) return;
+        var count = num || 1;
+        if (last.type === "f") {
+          vim2.findCharBackward(last.char, count);
+        } else if (last.type === "F") {
+          vim2.findCharForward(last.char, count);
+        } else if (last.type === "t") {
+          vim2.findCharTillBackward(last.char, count);
+        } else if (last.type === "T") {
+          vim2.findCharTillForward(last.char, count);
+        }
+      };
+      exports$1.moveToWordEnd = function(num) {
+        App.repeatAction(function() {
+          vim2.moveToWordEnd();
+        }, num);
+      };
+      exports$1.moveToWordEndBig = function(num) {
+        App.repeatAction(function() {
+          vim2.moveToWordEndBig();
+        }, num);
+      };
+      exports$1.destroy = function() {
+        for (var i = 0; i < _timeoutIds.length; i++) {
+          clearTimeout(_timeoutIds[i]);
+        }
+        _timeoutIds = [];
+        App = null;
+        vim2 = null;
+        textUtil = null;
+      };
+    })(controller);
     return controller;
   }
   var app = {};
@@ -1216,9 +1707,24 @@
       router2.code("68_87", "dw").action("dw", "deleteWord").record(true);
       router2.code("89_66", "yb").action("yb", "copyPrevWord");
       router2.code("68_66", "db").action("db", "deletePrevWord").record(true);
+      router2.code(67, "c").action("c", "changeSelection").action("C", "changeToEnd").record(true);
+      router2.code("67_67", "cc").action("cc", "changeLine").record(true);
+      router2.code("67_87", "cw").action("cw", "changeWord").record(true);
+      router2.code("67_66", "cb").action("cb", "changePrevWord").record(true);
+      router2.code(83, "s").action("s", "substitute").action("S", "substituteLine").record(true);
       router2.code(57, "9").action("shift_9", "moveToPrevSentence");
       router2.code(219, "[").action("shift_[", "moveToPrevParagraph");
       router2.code(221, "]").action("shift_]", "moveToNextParagraph");
+      router2.code(190, ".").action(".", "dotRepeat");
+      router2.code(70, "f").action("f", "findForward").action("F", "findBackward");
+      router2.code(84, "t").action("t", "tillForward").action("T", "tillBackward");
+      router2.code(186, ";").action(";", "repeatFindForward");
+      router2.code(188, ",").action(",", "repeatFindBackward");
+      router2.code(69, "e").action("e", "moveToWordEnd").action("E", "moveToWordEndBig");
+      router2.code("68_70", "df").action("df", "deleteFindForward").action("DF", "deleteFindBackward").record(true);
+      router2.code("68_84", "dt").action("dt", "deleteTillForward").action("DT", "deleteTillBackward").record(true);
+      router2.code("89_70", "yf").action("yf", "yankFindForward").action("YF", "yankFindBackward");
+      router2.code("89_84", "yt").action("yt", "yankTillForward").action("YT", "yankTillBackward");
     };
     return routes;
   }
@@ -1278,6 +1784,32 @@
         App._log("mode:" + App.vim.currentMode);
         if (replaced) {
           App.recordText();
+          return;
+        }
+        if (App.vim.findCharRequest) {
+          var char = ev.key;
+          if (!char || char.length > 1) {
+            char = String.fromCharCode(code);
+            if (ev.shiftKey) {
+              char = char.toUpperCase();
+            } else {
+              char = char.toLowerCase();
+            }
+          }
+          if (char.length !== 1) {
+            App.vim.findCharRequest = null;
+            return;
+          }
+          var req = App.vim.findCharRequest;
+          App.vim.findCharRequest = null;
+          if (req.operator) {
+            if (req.operator === "d") {
+              App.recordText();
+            }
+            App.controller.executeOperatorFindChar(char, req);
+          } else {
+            App.controller.executeFindChar(char, req);
+          }
           return;
         }
         if (filter2.code(App, code)) {
@@ -1430,6 +1962,9 @@
       this.controller = void 0;
       this.clipboard = void 0;
       this.doList = [];
+      this._lastDotCommand = void 0;
+      this._editStartText = void 0;
+      this._editStartPos = void 0;
     };
     app._on = function(event2, fn) {
       if (!this._events) {
@@ -1496,8 +2031,33 @@
     app.getEleKey = function() {
       return _.indexOf(this.boxes, this.currentEle);
     };
+    app.startEditCapture = function() {
+      this._editStartText = this.textUtil.getText();
+      this._editStartPos = this.textUtil.getCursorPosition();
+    };
+    app.endEditCapture = function() {
+      if (this._editStartText !== void 0) {
+        var newText = this.textUtil.getText();
+        var oldText = this._editStartText;
+        if (newText !== oldText && this._lastDotCommand) {
+          var prefixLen = 0;
+          while (prefixLen < oldText.length && prefixLen < newText.length && oldText[prefixLen] === newText[prefixLen]) {
+            prefixLen++;
+          }
+          var oldSuffix = oldText.length - 1;
+          var newSuffix = newText.length - 1;
+          while (oldSuffix >= prefixLen && newSuffix >= prefixLen && oldText[oldSuffix] === newText[newSuffix]) {
+            oldSuffix--;
+            newSuffix--;
+          }
+          this._lastDotCommand.insertedText = newText.substring(prefixLen, newSuffix + 1);
+        }
+        this._editStartText = void 0;
+        this._editStartPos = void 0;
+      }
+    };
     app.numberManager = function(code) {
-      if (code === 68 || code === 89) {
+      if (code === 68 || code === 89 || code === 67) {
         return void 0;
       }
       var num = String.fromCharCode(code);
@@ -1565,6 +2125,13 @@
             this.recordText();
           }
           c[methodName](param);
+          if (methodName !== "dotRepeat") {
+            this._lastDotCommand = {
+              methodName,
+              num: param,
+              isRecordable: !!vimKeys[code]["record"]
+            };
+          }
           this.initNumber();
         }
       }

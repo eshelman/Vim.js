@@ -35,6 +35,35 @@ exports.listen = function(app) {
             App.recordText();
             return;
         }
+        // Handle pending find-char request (f/F/t/T waiting for next char)
+        if (App.vim.findCharRequest) {
+            var char = ev.key;
+            if (!char || char.length > 1) {
+                // ev.key not available or is a special key, try fromCharCode
+                char = String.fromCharCode(code);
+                if (ev.shiftKey) {
+                    char = char.toUpperCase();
+                } else {
+                    char = char.toLowerCase();
+                }
+            }
+            if (char.length !== 1) {
+                // Unrecognized key, cancel the find request
+                App.vim.findCharRequest = null;
+                return;
+            }
+            var req = App.vim.findCharRequest;
+            App.vim.findCharRequest = null;
+            if (req.operator) {
+                if (req.operator === 'd') {
+                    App.recordText();
+                }
+                App.controller.executeOperatorFindChar(char, req);
+            } else {
+                App.controller.executeFindChar(char, req);
+            }
+            return;
+        }
         if (filter.code(App, code)) {
             var unionCode = App.isUnionCode(code, -1);
             var vimKeys = App.router.getKeys();

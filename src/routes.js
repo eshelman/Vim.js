@@ -73,9 +73,34 @@ exports.ready = function(router){
     router.code('89_66', 'yb').action('yb', 'copyPrevWord');
     //delete previous word
     router.code('68_66', 'db').action('db', 'deletePrevWord').record(true);
+    //change (delete + enter insert mode)
+    router.code(67, 'c').action('c', 'changeSelection').action('C', 'changeToEnd').record(true);
+    router.code('67_67', 'cc').action('cc', 'changeLine').record(true);
+    router.code('67_87', 'cw').action('cw', 'changeWord').record(true);
+    router.code('67_66', 'cb').action('cb', 'changePrevWord').record(true);
+    //substitute
+    router.code(83, 's').action('s', 'substitute').action('S', 'substituteLine').record(true);
     //sentence motions
     router.code(57, '9').action('shift_9', 'moveToPrevSentence');
     //paragraph motions
     router.code(219, '[').action('shift_[', 'moveToPrevParagraph');
     router.code(221, ']').action('shift_]', 'moveToNextParagraph');
+    //dot repeat
+    router.code(190, '.').action('.', 'dotRepeat');
+
+    //find character motions (f/F/t/T)
+    router.code(70, 'f').action('f', 'findForward').action('F', 'findBackward');
+    router.code(84, 't').action('t', 'tillForward').action('T', 'tillBackward');
+    //repeat find (; and ,)
+    router.code(186, ';').action(';', 'repeatFindForward');
+    router.code(188, ',').action(',', 'repeatFindBackward');
+    //word end motion
+    router.code(69, 'e').action('e', 'moveToWordEnd').action('E', 'moveToWordEndBig');
+
+    //delete with find/till char (df/dF/dt/dT)
+    router.code('68_70', 'df').action('df', 'deleteFindForward').action('DF', 'deleteFindBackward').record(true);
+    router.code('68_84', 'dt').action('dt', 'deleteTillForward').action('DT', 'deleteTillBackward').record(true);
+    //yank with find/till char (yf/yF/yt/yT)
+    router.code('89_70', 'yf').action('yf', 'yankFindForward').action('YF', 'yankFindBackward');
+    router.code('89_84', 'yt').action('yt', 'yankTillForward').action('YT', 'yankTillBackward');
 }

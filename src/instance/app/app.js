@@ -55,6 +55,9 @@ exports.destroy = function() {
     this.controller = undefined;
     this.clipboard = undefined;
     this.doList = [];
+    this._lastDotCommand = undefined;
+    this._editStartText = undefined;
+    this._editStartPos = undefined;
 }
 
 exports._on = function (event, fn) {
@@ -129,8 +132,39 @@ exports.getEleKey = function() {
     return _.indexOf(this.boxes, this.currentEle);
 }
 
+exports.startEditCapture = function() {
+    this._editStartText = this.textUtil.getText();
+    this._editStartPos = this.textUtil.getCursorPosition();
+};
+
+exports.endEditCapture = function() {
+    if (this._editStartText !== undefined) {
+        var newText = this.textUtil.getText();
+        var oldText = this._editStartText;
+        if (newText !== oldText && this._lastDotCommand) {
+            //find common prefix length
+            var prefixLen = 0;
+            while (prefixLen < oldText.length && prefixLen < newText.length &&
+                   oldText[prefixLen] === newText[prefixLen]) {
+                prefixLen++;
+            }
+            //find common suffix length
+            var oldSuffix = oldText.length - 1;
+            var newSuffix = newText.length - 1;
+            while (oldSuffix >= prefixLen && newSuffix >= prefixLen &&
+                   oldText[oldSuffix] === newText[newSuffix]) {
+                oldSuffix--;
+                newSuffix--;
+            }
+            this._lastDotCommand.insertedText = newText.substring(prefixLen, newSuffix + 1);
+        }
+        this._editStartText = undefined;
+        this._editStartPos = undefined;
+    }
+};
+
 exports.numberManager = function(code) {
-    if (code === 68 || code === 89) {
+    if (code === 68 || code === 89 || code === 67) {
         //防止ndd和nyy时候数值计算错误,如当code为68时，
         //如果不拦截，则会在后面执行initNumber()，导致dd时无法获取数值
         return undefined;
@@ -204,6 +238,14 @@ exports.parseRoute = function(code, ev, num) {
                 this.recordText();
             }
             c[methodName](param);
+            //track last command for dot repeat (skip the dot command itself)
+            if (methodName !== 'dotRepeat') {
+                this._lastDotCommand = {
+                    methodName: methodName,
+                    num: param,
+                    isRecordable: !!vimKeys[code]['record']
+                };
+            }
             //init number
             this.initNumber();
         }

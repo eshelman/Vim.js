@@ -39,6 +39,7 @@ exports.selectNextCharacter = function (num) {
 };
 
 exports.switchModeToGeneral = function () {
+    App.endEditCapture();
     var cMode= vim.currentMode;
     if (vim.isMode(GENERAL)) {
         return;
@@ -89,6 +90,7 @@ exports.switchModeToVisual = function () {
 
 exports.append = function() {
     vim.append();
+    App.startEditCapture();
     _timeoutIds.push(setTimeout(function () {
         vim.switchModeTo(EDIT);
     }, 100));
@@ -101,6 +103,7 @@ exports.appendLineTail = function () {
 
 exports.insert = function() {
     vim.insert();
+    App.startEditCapture();
     _timeoutIds.push(setTimeout(function () {
         vim.switchModeTo(EDIT);
     }, 100));
@@ -176,6 +179,7 @@ exports.replaceChar = function () {
 
 exports.appendNewLine = function () {
     vim.appendNewLine();
+    App.startEditCapture();
     _timeoutIds.push(setTimeout(function () {
         vim.switchModeTo(EDIT);
     }, 100));
@@ -183,6 +187,7 @@ exports.appendNewLine = function () {
 
 exports.insertNewLine = function () {
     vim.insertNewLine();
+    App.startEditCapture();
     _timeoutIds.push(setTimeout(function () {
         vim.switchModeTo(EDIT);
     }, 100));
@@ -281,6 +286,76 @@ exports.deletePrevWord = function (num) {
     }, num);
 };
 
+exports.changeLine = function (num) {
+    App.repeatAction(function () {
+       return vim.changeLine();
+    }, num);
+    App.startEditCapture();
+    _timeoutIds.push(setTimeout(function () {
+        vim.switchModeTo(EDIT);
+    }, 100));
+};
+
+exports.changeWord = function (num) {
+    vim.pasteInNewLineRequest = false;
+    App.repeatAction(function () {
+       return vim.changeWord();
+    }, num);
+    App.startEditCapture();
+    _timeoutIds.push(setTimeout(function () {
+        vim.switchModeTo(EDIT);
+    }, 100));
+};
+
+exports.changePrevWord = function (num) {
+    vim.pasteInNewLineRequest = false;
+    App.repeatAction(function () {
+       return vim.changePrevWord();
+    }, num);
+    App.startEditCapture();
+    _timeoutIds.push(setTimeout(function () {
+        vim.switchModeTo(EDIT);
+    }, 100));
+};
+
+exports.changeToEnd = function () {
+    vim.changeToEnd();
+    App.startEditCapture();
+    _timeoutIds.push(setTimeout(function () {
+        vim.switchModeTo(EDIT);
+    }, 100));
+};
+
+exports.substitute = function (num) {
+    vim.pasteInNewLineRequest = false;
+    App.repeatAction(function () {
+       return vim.substituteChar();
+    }, num);
+    App.startEditCapture();
+    _timeoutIds.push(setTimeout(function () {
+        vim.switchModeTo(EDIT);
+    }, 100));
+};
+
+exports.substituteLine = function (num) {
+    this.changeLine(num);
+};
+
+exports.changeSelection = function () {
+    if (!vim.isMode(VISUAL)) {
+        return;
+    }
+    vim.pasteInNewLineRequest = false;
+    App.clipboard = textUtil.getSelectedText();
+    var p = textUtil.getCursorPosition();
+    textUtil.delSelected();
+    textUtil.select(p, p);
+    App.startEditCapture();
+    _timeoutIds.push(setTimeout(function () {
+        vim.switchModeTo(EDIT);
+    }, 100));
+};
+
 exports.copyPrevWord = function (num) {
     vim.pasteInNewLineRequest = false;
     var ep = textUtil.getCursorPosition();
@@ -289,6 +364,202 @@ exports.copyPrevWord = function (num) {
         sp = vim.copyPrevWord(sp);
     }, num);
     App.clipboard = textUtil.getText(sp, ep);
+};
+
+exports.dotRepeat = function (num) {
+    var cmd = App._lastDotCommand;
+    if (!cmd) {
+        return;
+    }
+    var repeatNum = num || cmd.num;
+    //record for undo if the original command was recordable or had inserted text
+    if (cmd.isRecordable || cmd.insertedText !== undefined) {
+        App.recordText();
+    }
+    //execute the command
+    if (typeof exports[cmd.methodName] === 'function') {
+        exports[cmd.methodName](repeatNum);
+    }
+    //if the command entered edit mode and has captured inserted text,
+    //insert that text and return to normal mode
+    if (cmd.insertedText !== undefined && cmd.insertedText !== '') {
+        _timeoutIds.push(setTimeout(function () {
+            if (vim.isMode(EDIT)) {
+                var p = textUtil.getCursorPosition();
+                textUtil.insertText(cmd.insertedText, p);
+                textUtil.select(p + cmd.insertedText.length, p + cmd.insertedText.length);
+                vim.switchModeTo(GENERAL);
+                //reposition cursor in general mode (select character before cursor)
+                var newP = textUtil.getCursorPosition();
+                if (newP > 0) {
+                    textUtil.select(newP - 1, newP);
+                }
+            }
+        }, 200));
+    }
+};
+
+// ==============================
+// Find character motions (f/F/t/T)
+// ==============================
+
+// f — set pending request to find char forward
+exports.findForward = function (num) {
+    vim.findCharRequest = { type: 'f', count: num || 1 };
+};
+
+// F — set pending request to find char backward
+exports.findBackward = function (num) {
+    vim.findCharRequest = { type: 'F', count: num || 1 };
+};
+
+// t — set pending request to find till forward
+exports.tillForward = function (num) {
+    vim.findCharRequest = { type: 't', count: num || 1 };
+};
+
+// T — set pending request to find till backward
+exports.tillBackward = function (num) {
+    vim.findCharRequest = { type: 'T', count: num || 1 };
+};
+
+// Execute find after receiving the target character (standalone motion)
+exports.executeFindChar = function (char, request) {
+    // Store for ; and , repeat
+    App._lastFindChar = { char: char, type: request.type, count: request.count };
+
+    if (request.type === 'f') {
+        vim.findCharForward(char, request.count);
+    } else if (request.type === 'F') {
+        vim.findCharBackward(char, request.count);
+    } else if (request.type === 't') {
+        vim.findCharTillForward(char, request.count);
+    } else if (request.type === 'T') {
+        vim.findCharTillBackward(char, request.count);
+    }
+};
+
+// Execute find for operator-pending mode (df, dt, yf, yt, etc.)
+exports.executeOperatorFindChar = function (char, request) {
+    App._lastFindChar = { char: char, type: request.type, count: request.count };
+
+    var operator = request.operator;
+    var type = request.type;
+
+    if (operator === 'd') {
+        if (type === 'f') {
+            vim.deleteToFindForward(char, request.count);
+        } else if (type === 'F') {
+            vim.deleteToFindBackward(char, request.count);
+        } else if (type === 't') {
+            vim.deleteToTillForward(char, request.count);
+        } else if (type === 'T') {
+            vim.deleteToTillBackward(char, request.count);
+        }
+    } else if (operator === 'y') {
+        var text;
+        if (type === 'f') {
+            text = vim.yankToFindForward(char, request.count);
+        } else if (type === 'F') {
+            text = vim.yankToFindBackward(char, request.count);
+        } else if (type === 't') {
+            text = vim.yankToTillForward(char, request.count);
+        } else if (type === 'T') {
+            text = vim.yankToTillBackward(char, request.count);
+        }
+        if (text !== undefined) {
+            App.clipboard = text;
+        }
+    }
+};
+
+// ==============================
+// Operator-pending find char (df, dt, dF, dT, yf, yt, yF, yT)
+// ==============================
+
+exports.deleteFindForward = function (num) {
+    vim.findCharRequest = { type: 'f', count: num || 1, operator: 'd' };
+};
+
+exports.deleteFindBackward = function (num) {
+    vim.findCharRequest = { type: 'F', count: num || 1, operator: 'd' };
+};
+
+exports.deleteTillForward = function (num) {
+    vim.findCharRequest = { type: 't', count: num || 1, operator: 'd' };
+};
+
+exports.deleteTillBackward = function (num) {
+    vim.findCharRequest = { type: 'T', count: num || 1, operator: 'd' };
+};
+
+exports.yankFindForward = function (num) {
+    vim.findCharRequest = { type: 'f', count: num || 1, operator: 'y' };
+};
+
+exports.yankFindBackward = function (num) {
+    vim.findCharRequest = { type: 'F', count: num || 1, operator: 'y' };
+};
+
+exports.yankTillForward = function (num) {
+    vim.findCharRequest = { type: 't', count: num || 1, operator: 'y' };
+};
+
+exports.yankTillBackward = function (num) {
+    vim.findCharRequest = { type: 'T', count: num || 1, operator: 'y' };
+};
+
+// ==============================
+// Repeat find motions (; and ,)
+// ==============================
+
+// ; — repeat last f/F/t/T in same direction
+exports.repeatFindForward = function (num) {
+    var last = App._lastFindChar;
+    if (!last) return;
+    var count = num || 1;
+    if (last.type === 'f') {
+        vim.findCharForward(last.char, count);
+    } else if (last.type === 'F') {
+        vim.findCharBackward(last.char, count);
+    } else if (last.type === 't') {
+        vim.findCharTillForward(last.char, count);
+    } else if (last.type === 'T') {
+        vim.findCharTillBackward(last.char, count);
+    }
+};
+
+// , — repeat last f/F/t/T in opposite direction
+exports.repeatFindBackward = function (num) {
+    var last = App._lastFindChar;
+    if (!last) return;
+    var count = num || 1;
+    // Reverse the direction
+    if (last.type === 'f') {
+        vim.findCharBackward(last.char, count);
+    } else if (last.type === 'F') {
+        vim.findCharForward(last.char, count);
+    } else if (last.type === 't') {
+        vim.findCharTillBackward(last.char, count);
+    } else if (last.type === 'T') {
+        vim.findCharTillForward(last.char, count);
+    }
+};
+
+// ==============================
+// Word-end motions (e/E)
+// ==============================
+
+exports.moveToWordEnd = function (num) {
+    App.repeatAction(function(){
+        vim.moveToWordEnd();
+    }, num);
+};
+
+exports.moveToWordEndBig = function (num) {
+    App.repeatAction(function(){
+        vim.moveToWordEndBig();
+    }, num);
 };
 
 exports.destroy = function() {
