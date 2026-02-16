@@ -60,7 +60,7 @@ p.class('Controller', Controller);
  * define vim
  * @type {{open: Function}}
  */
-window.vim = {
+var vimApi = {
     open: function(options){
         this._app = new App(options);
         return this._app;
@@ -72,3 +72,5 @@ window.vim = {
         }
     }
 };
+window.vim = vimApi;
+module.exports = vimApi;

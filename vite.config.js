@@ -1,10 +1,12 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import commonjs from '@rollup/plugin-commonjs';
 
 export default defineConfig(({ mode }) => {
   const isMinified = mode === 'minified';
 
   return {
+    plugins: [commonjs()],
     build: {
       lib: {
         entry: resolve(__dirname, 'src/index.js'),

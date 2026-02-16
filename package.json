@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build",
-    "build_min": "vite build --mode minified"
+    "build_min": "vite build --mode minified",
+    "serve": "vite build && open demo/demo.html"
   },
   "keywords": [
     "vim",
@@ -20,6 +21,7 @@
   },
   "bugs": "https://github.com/toplan/Vim.js/issues",
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.0",
     "vite": "^6.1.0"
   }
 }
