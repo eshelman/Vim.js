@@ -2,7 +2,7 @@
 
 Simple and lightweight Vim keybindings for web `textarea` and `input` fields, to improve the writing experience on the web.
 
-[Demo here](http://toplan.github.io/vimjs/index.html)
+[Demo here](https://6by9.net/vimjs-demo/)
 
 **Note:**
 

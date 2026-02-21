@@ -2,7 +2,7 @@
 
 为网页端 `textarea` 和 `input` 文本输入框打造的轻量级 Vim 按键绑定，提升网页端书写体验。
 
-[在线演示](http://toplan.github.io/vimjs/index.html)
+[在线演示](https://6by9.net/vimjs-demo/)
 
 **注意：**
 
