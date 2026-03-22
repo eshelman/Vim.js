@@ -34,8 +34,11 @@ npm install
 # development (watch mode)
 npm run dev
 
-# production build
+# production build (unminified)
 npm run build
+
+# production build (minified)
+npm run build_min
 
 # run tests
 npm test

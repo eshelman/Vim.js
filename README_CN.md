@@ -35,8 +35,11 @@ npm install
 # 开发模式（监听文件变化）
 npm run dev
 
-# 生产环境编译
+# 生产环境编译（未压缩）
 npm run build
+
+# 生产环境编译（压缩）
+npm run build_min
 
 # 运行测试
 npm test
