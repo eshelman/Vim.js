@@ -2028,7 +2028,7 @@
        * key codes white list of vim,
        * they are effective in general and visual mode
        */
-      key_code_white_list: [9, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123]
+      key_code_white_list: [9, 16, 17, 18, 91, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123]
     };
     return config;
   }
@@ -2073,7 +2073,7 @@
       router2.code("68_87", "dw").action("dw", "deleteWord").record(true);
       router2.code("89_66", "yb").action("yb", "copyPrevWord");
       router2.code("68_66", "db").action("db", "deletePrevWord").record(true);
-      router2.code(67, "c").action("c", "changeSelection").action("C", "changeToEnd").record(true);
+      router2.code(67, "c").action("c", "changeSelection").action("C", "changeToEnd").mode("visual_mode").record(true);
       router2.code("67_67", "cc").action("cc", "changeLine").record(true);
       router2.code("67_87", "cw").action("cw", "changeWord").record(true);
       router2.code("67_66", "cb").action("cb", "changePrevWord").record(true);
@@ -2521,7 +2521,7 @@
       }
       if (vimKeys[code] && (this.vim.isMode(GENERAL) || this.vim.isMode(VISUAL))) {
         var mode = vimKeys[code]["mode"];
-        if (mode && !this.vim.isMode(mode)) {
+        if (mode && !this.vim.isMode(mode) && !ev.shiftKey) {
           return false;
         }
         var keyName = vimKeys[code]["name"];

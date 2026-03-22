@@ -89,6 +89,20 @@ describe('count + operator', () => {
     pressCompoundKey(env.app, KEY.Y, KEY.Y);
     expect(env.app.clipboard).toBe('aaa\nbbb');
   });
+
+  test('3cw changes 3 words', () => {
+    var env = setup('one two three four five', 0);
+    pressNumber(env.app, 3);
+    pressCompoundKey(env.app, KEY.C, KEY.W);
+    expect(getText(env)).toBe('four five');
+  });
+
+  test('2cb changes 2 previous words', () => {
+    var env = setup('one two three four', 14);
+    pressNumber(env.app, 2);
+    pressCompoundKey(env.app, KEY.C, KEY.B);
+    expect(getText(env)).toBe('one four');
+  });
 });
 
 describe('count + dot repeat', () => {

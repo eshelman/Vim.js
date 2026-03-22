@@ -233,7 +233,7 @@ exports.parseRoute = function(code, ev, num) {
     }
     if (vimKeys[code] && (this.vim.isMode(GENERAL) || this.vim.isMode(VISUAL))) {
         var mode = vimKeys[code]['mode'];
-        if (mode && !this.vim.isMode(mode)) {
+        if (mode && !this.vim.isMode(mode) && !ev.shiftKey) {
             return false;
         }
         var keyName = vimKeys[code]['name'];

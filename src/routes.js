@@ -74,7 +74,7 @@ exports.ready = function(router){
     //delete previous word
     router.code('68_66', 'db').action('db', 'deletePrevWord').record(true);
     //change (delete + enter insert mode)
-    router.code(67, 'c').action('c', 'changeSelection').action('C', 'changeToEnd').record(true);
+    router.code(67, 'c').action('c', 'changeSelection').action('C', 'changeToEnd').mode('visual_mode').record(true);
     router.code('67_67', 'cc').action('cc', 'changeLine').record(true);
     router.code('67_87', 'cw').action('cw', 'changeWord').record(true);
     router.code('67_66', 'cb').action('cb', 'changePrevWord').record(true);
